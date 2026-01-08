@@ -38,21 +38,20 @@ let videoDevices = [];
 let currentDeviceIndex = 0;
 let currentFacing = "user"; // user | environment
 let isMirrored = true;
+let isRemoteFlipped = false;
 
 function setMirror(on){
   isMirrored = !!on;
   if (!localVideo) return;
   localVideo.classList.toggle("mirrored", isMirrored);
   if (flipBtn) flipBtn.textContent = isMirrored ? "Unmirror 🪞" : "Mirror self 🪞";
-
-let isRemoteMirrored = false;
-function setRemoteMirror(on){
-  isRemoteMirrored = !!on;
-  if (!remoteVideo) return;
-  remoteVideo.classList.toggle("mirrored", isRemoteMirrored);
-  if (flipRemoteBtn) flipRemoteBtn.textContent = isRemoteMirrored ? "Unflip remote ↔️" : "Flip remote ↔️";
 }
 
+function setRemoteFlip(on){
+  isRemoteFlipped = !!on;
+  if (!remoteVideo) return;
+  remoteVideo.classList.toggle("mirrored", isRemoteFlipped);
+  if (flipRemoteBtn) flipRemoteBtn.textContent = isRemoteFlipped ? "Unflip remote ↔️" : "Flip remote ↔️";
 }
 
 async function refreshVideoDevices(){
@@ -159,9 +158,13 @@ async function ensureLocalStream(){
   // Enable camera tools once permissions are granted
   switchCamBtn && (switchCamBtn.disabled = false);
   flipBtn && (flipBtn.disabled = false);
+  // Remote flip is a UI-only transform; enable once app is interactive
   flipRemoteBtn && (flipRemoteBtn.disabled = false);
   await refreshVideoDevices();
   setMirror(true);
+
+  // Default: do not flip remote
+  setRemoteFlip(false);
 
   setStatus("Camera ON 🎥");
   log("Local stream tracks:", localStream.getTracks().map(t=>`${t.kind}:${t.readyState}`).join(", "));
@@ -176,6 +179,8 @@ function cleanupPeer(){
   isHost = false;
   hostId = null;
   if (remoteVideo) remoteVideo.srcObject = null;
+  // Keep flip state (UI preference) but ensure class is applied consistently
+  setRemoteFlip(isRemoteFlipped);
   hangupBtn.style.display = "none";
 }
 
@@ -186,6 +191,8 @@ function attachCallHandlers(c){
     log("Remote stream received:", remoteStream.getTracks().map(t=>`${t.kind}:${t.readyState}`).join(", "));
     remoteVideo.srcObject = remoteStream;
     remoteVideo.play().catch(()=>{});
+    // Re-apply remote flip preference after the element starts rendering
+    setRemoteFlip(isRemoteFlipped);
     setStatus("Connected ✅");
   });
   c.on("close", () => {
@@ -309,8 +316,13 @@ flipBtn?.addEventListener("click", () => {
 });
 
 flipRemoteBtn?.addEventListener("click", () => {
-  setRemoteMirror(!isRemoteMirrored);
-  log("Remote flip:", isRemoteMirrored ? "ON" : "OFF");
+  setRemoteFlip(!isRemoteFlipped);
+  log("Remote flip:", isRemoteFlipped ? "ON" : "OFF");
+});
+
+flipRemoteBtn?.addEventListener("click", () => {
+  setRemoteFlip(!isRemoteFlipped);
+  log("Remote flip:", isRemoteFlipped ? "ON" : "OFF");
 });
 
 // Nice default status
