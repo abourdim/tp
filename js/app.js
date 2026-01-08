@@ -9,6 +9,8 @@ const $ = (id) => document.getElementById(id);
 
 const roomInput = $("roomInput");
 const startBtn = $("startBtn");
+const switchCamBtn = $("switchCamBtn");
+const flipBtn = $("flipBtn");
 const connectBtn = $("connectBtn");
 const hangupBtn = $("hangupBtn");
 const localVideo = $("localVideo");
@@ -30,6 +32,107 @@ let call = null;
 let isHost = false;
 let hostId = null;
 
+// Camera switching / mirroring
+let videoDevices = [];
+let currentDeviceIndex = 0;
+let currentFacing = "user"; // user | environment
+let isMirrored = true;
+
+function setMirror(on){
+  isMirrored = !!on;
+  if (!localVideo) return;
+  localVideo.classList.toggle("mirrored", isMirrored);
+  if (flipBtn) flipBtn.textContent = isMirrored ? "Unmirror 🪞" : "Mirror self 🪞";
+}
+
+async function refreshVideoDevices(){
+  try{
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    videoDevices = devices.filter(d => d.kind === "videoinput");
+    // Keep index in range
+    if (videoDevices.length && currentDeviceIndex >= videoDevices.length) currentDeviceIndex = 0;
+  }catch(e){
+    // Some browsers require permissions before enumerateDevices returns labels
+    videoDevices = [];
+  }
+}
+
+async function replaceOutgoingVideoTrack(newTrack){
+  if (!localStream) return;
+  const old = localStream.getVideoTracks()[0];
+  if (old){
+    try{ localStream.removeTrack(old); }catch{}
+    try{ old.stop(); }catch{}
+  }
+  localStream.addTrack(newTrack);
+
+  // If we're in a call, replace the sender's track without renegotiation.
+  const pc = call?.peerConnection;
+  const sender = pc?.getSenders?.().find(s => s.track && s.track.kind === "video");
+  if (sender?.replaceTrack){
+    try{ await sender.replaceTrack(newTrack); }catch(e){ log("replaceTrack failed:", e?.message || String(e)); }
+  }
+}
+
+async function switchCamera(){
+  if (!localStream){
+    log("Switch camera: start camera first");
+    return;
+  }
+
+  setStatus("Switching camera…");
+  await refreshVideoDevices();
+
+  try{
+    let videoConstraint = null;
+
+    if (videoDevices.length > 1){
+      // Cycle actual camera devices when available (desktop + many Androids)
+      currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+      const deviceId = videoDevices[currentDeviceIndex].deviceId;
+      videoConstraint = { deviceId: { exact: deviceId } };
+      log("Switching to device:", videoDevices[currentDeviceIndex].label || deviceId);
+    } else {
+      // Fallback: try toggling facingMode (mobile)
+      currentFacing = (currentFacing === "user") ? "environment" : "user";
+      // Try exact first, then ideal
+      videoConstraint = { facingMode: { exact: currentFacing } };
+      log("Switching facingMode (exact):", currentFacing);
+    }
+
+    let s;
+    try{
+      s = await navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false });
+    }catch(e){
+      // If facingMode exact fails, retry with ideal
+      if (!videoDevices.length){
+        log("Exact facingMode failed, retry ideal:", e?.name || "", e?.message || String(e));
+        s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: currentFacing } }, audio: false });
+      } else {
+        throw e;
+      }
+    }
+
+    const [newTrack] = s.getVideoTracks();
+    if (!newTrack) throw new Error("No video track from camera");
+
+    await replaceOutgoingVideoTrack(newTrack);
+    // Keep local preview running (same MediaStream object)
+    localVideo.srcObject = localStream;
+    await localVideo.play().catch(()=>{});
+
+    // Helpful default: mirror for front cam, unmirror for back cam
+    if (!videoDevices.length) setMirror(currentFacing === "user");
+
+    setStatus("Camera switched ✅");
+    log("Camera switched. Track:", `${newTrack.label || "video"}`);
+  } catch (e) {
+    log("Switch camera failed:", e?.name || "", e?.message || String(e));
+    setStatus("Switch failed ❌");
+    alert("Could not switch camera on this device/browser.");
+  }
+}
+
 function randomId(n=6){
   return Math.random().toString(16).slice(2, 2+n);
 }
@@ -43,6 +146,12 @@ async function ensureLocalStream(){
   });
   localVideo.srcObject = localStream;
   await localVideo.play().catch(()=>{});
+  // Enable camera tools once permissions are granted
+  switchCamBtn && (switchCamBtn.disabled = false);
+  flipBtn && (flipBtn.disabled = false);
+  await refreshVideoDevices();
+  setMirror(true);
+
   setStatus("Camera ON 🎥");
   log("Local stream tracks:", localStream.getTracks().map(t=>`${t.kind}:${t.readyState}`).join(", "));
   return localStream;
@@ -177,6 +286,15 @@ connectBtn?.addEventListener("click", async () => {
 hangupBtn?.addEventListener("click", () => {
   cleanupPeer();
   setStatus("Idle");
+});
+
+switchCamBtn?.addEventListener("click", () => {
+  switchCamera();
+});
+
+flipBtn?.addEventListener("click", () => {
+  setMirror(!isMirrored);
+  log("Mirror:", isMirrored ? "ON" : "OFF");
 });
 
 // Nice default status

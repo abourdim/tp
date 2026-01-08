@@ -13,6 +13,7 @@ h2{margin:0 0 10px 0}
 .btn.big{font-size:18px;padding:14px 16px}
 .btn.stop{background:#ff3b5a}
 video{width:100%;max-width:720px;border-radius:14px;background:#000;margin-top:10px}
+.mirrored{transform:scaleX(-1)}
 .dpad{display:flex;flex-direction:column;gap:10px;align-items:center}
 .btn.d{width:80px;height:64px;font-size:26px;display:flex;align-items:center;justify-content:center}
 
