@@ -19,13 +19,12 @@ const remoteVideo = $("remoteVideo");
 const statusPill = $("status");
 const logEl = $("log");
 
-// Gamepad UI
-const gpStatus = $("gpStatus");
-const gpSendState = $("gpSendState");
-const gpLocalEl = $("gpLocal");
-const gpRemoteEl = $("gpRemote");
-const gpEnableBtn = $("gpEnableBtn");
-let gpEnabled = false;
+const dataStatusEl = $("dataStatus");
+const lastSentEl = $("lastSent");
+const lastRecvEl = $("lastRecv");
+const msgLogEl = $("msgLog");
+const textInputEl = $("textInput");
+const sendTextBtn = $("sendTextBtn");
 
 function setStatus(t){ if(statusPill) statusPill.textContent = t; }
 function log(...args){
@@ -34,10 +33,55 @@ function log(...args){
   if (logEl) logEl.textContent += line + "\n";
 }
 
+function msgLog(...args){
+  const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
+  if (msgLogEl) msgLogEl.textContent += line + "\n";
+}
+
+function setDataStatus(t){
+  if (dataStatusEl) dataStatusEl.textContent = t;
+}
+
+function setLastSent(t){ if (lastSentEl) lastSentEl.textContent = t; }
+function setLastRecv(t){ if (lastRecvEl) lastRecvEl.textContent = t; }
+
+function sendData(obj){
+  if (!dataConn || !dataConn.open) return false;
+  try{
+    dataConn.send(obj);
+    setLastSent(obj.type === "text" ? ("text: " + obj.text) : (obj.type + ":" + (obj.cmd||obj.id||"")));
+    return true;
+  }catch(e){
+    log("Data send error:", e?.message || String(e));
+    return false;
+  }
+}
+
+function attachDataConn(conn){
+  dataConn = conn;
+  setDataStatus("open");
+  msgLog("[data] open with", conn.peer);
+
+  conn.on("data", (msg) => {
+    setLastRecv(msg.type === "text" ? ("text: " + msg.text) : (msg.type + ":" + (msg.cmd||msg.id||"")));
+    msgLog("[recv]", msg);
+  });
+
+  conn.on("close", () => {
+    setDataStatus("closed");
+    msgLog("[data] closed");
+  });
+
+  conn.on("error", (e) => {
+    setDataStatus("error");
+    msgLog("[data] error:", e?.message || String(e));
+  });
+}
+
 let localStream = null;
 let peer = null;
 let call = null;
-let dataConn = null; // PeerJS DataConnection (WebRTC data channel)
+let dataConn = null;
 
 let isHost = false;
 let hostId = null;
@@ -183,8 +227,6 @@ async function ensureLocalStream(){
 function cleanupPeer(){
   try { call?.close(); } catch {}
   call = null;
-  try { dataConn?.close(); } catch {}
-  dataConn = null;
   try { peer?.destroy(); } catch {}
   peer = null;
   isHost = false;
@@ -193,62 +235,6 @@ function cleanupPeer(){
   // Keep flip state (UI preference) but ensure class is applied consistently
   setRemoteFlip(isRemoteFlipped);
   hangupBtn.style.display = "none";
-}
-
-function setGpStatus(text){
-  if (gpStatus) gpStatus.textContent = text;
-}
-
-function setupDataConn(conn){
-  if (!conn) return;
-  // Keep a single active connection
-  try { dataConn?.close(); } catch {}
-  dataConn = conn;
-
-  conn.on("open", () => {
-    log("Data channel open ↔️");
-    setStatus(call ? "Connected ✅" : "Data ready ✅");
-  });
-
-  conn.on("data", (payload) => {
-    try{
-      const msg = (typeof payload === "string") ? JSON.parse(payload) : payload;
-      if (msg && msg.t === "gp"){
-        if (gpRemoteEl) gpRemoteEl.textContent = formatGpState(msg);
-      }
-    }catch(e){
-      // Ignore malformed payloads
-    }
-  });
-
-  conn.on("close", () => {
-    if (dataConn === conn) dataConn = null;
-    log("Data channel closed");
-  });
-
-  conn.on("error", (e) => {
-    log("Data channel error:", e?.message || String(e));
-  });
-}
-
-function sendData(obj){
-  if (!dataConn || !dataConn.open) return false;
-  try{
-    dataConn.send(JSON.stringify(obj));
-    return true;
-  }catch{
-    return false;
-  }
-}
-
-function formatGpState(msg){
-  const axes = (msg.axes || []).map(v => Number(v).toFixed(2));
-  const pressed = (msg.buttonsPressed || []).map(b => b ? 1 : 0);
-  return [
-    `ts: ${msg.ts || ""}`,
-    `axes: [${axes.join(", ")}]`,
-    `buttons: [${pressed.join("")}]`,
-  ].join("\n");
 }
 
 function attachCallHandlers(c){
@@ -307,15 +293,10 @@ async function connect(){
       setStatus("Calling other device…");
       const c = peer.call(hostId, localStream);
       attachCallHandlers(c);
-
-      // Open a data channel to the host for gamepad/control messages
-      const conn = peer.connect(hostId, { reliable: true });
-      setupDataConn(conn);
-    });
-
-    peer.on("connection", (conn) => {
-      log("Incoming data channel (guest) from:", conn.peer);
-      setupDataConn(conn);
+      // Open data channel for controls/text
+      const dc = peer.connect(hostId, { reliable: true });
+      dc.on("open", () => { log("Data channel open (guest)"); attachDataConn(dc); });
+      dc.on("error", (e) => { log("Data channel error (guest):", e?.message || String(e)); });
     });
 
     peer.on("call", (incoming) => {
@@ -340,8 +321,8 @@ async function connect(){
   });
 
   peer.on("connection", (conn) => {
-    log("Incoming data channel (host) from:", conn.peer);
-    setupDataConn(conn);
+    log("Data connection (host) from:", conn.peer);
+    attachDataConn(conn);
   });
 
   peer.on("call", (incoming) => {
@@ -382,9 +363,71 @@ connectBtn?.addEventListener("click", async () => {
   }
 });
 
+
+sendTextBtn?.addEventListener("click", () => {
+  const txt = (textInputEl?.value || "").trim();
+  if (!txt) return;
+  if (!sendData({ type: "text", text: txt })) {
+    msgLog("[warn] data channel not open");
+    return;
+  }
+  msgLog("[sent]", txt);
+  if (textInputEl) textInputEl.value = "";
+});
+
+textInputEl?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendTextBtn?.click();
+  }
+});
+
+function wireVirtualGamepad(){
+  const pressMap = new Map();
+  const buttons = document.querySelectorAll(".vbtn");
+  buttons.forEach((btn) => {
+    const cmd = btn.getAttribute("data-cmd");
+    const bid = btn.getAttribute("data-btn");
+
+    const onDown = (ev) => {
+      ev.preventDefault();
+      const key = cmd ? ("cmd:"+cmd) : ("btn:"+bid);
+      if (pressMap.get(key)) return; // already pressed
+      pressMap.set(key, true);
+
+      if (cmd){
+        sendData({ type: "cmd", cmd, pressed: true });
+      } else if (bid){
+        sendData({ type: "btn", id: bid, pressed: true });
+      }
+    };
+
+    const onUp = (ev) => {
+      ev.preventDefault();
+      const key = cmd ? ("cmd:"+cmd) : ("btn:"+bid);
+      if (!pressMap.get(key)) return;
+      pressMap.set(key, false);
+
+      if (cmd){
+        sendData({ type: "cmd", cmd, pressed: false });
+        if (cmd !== "STOP") sendData({ type: "cmd", cmd: "STOP", pressed: true }); // safety stop on release
+      } else if (bid){
+        sendData({ type: "btn", id: bid, pressed: false });
+      }
+    };
+
+    btn.addEventListener("pointerdown", onDown);
+    btn.addEventListener("pointerup", onUp);
+    btn.addEventListener("pointercancel", onUp);
+    btn.addEventListener("pointerleave", onUp);
+  });
+}
+wireVirtualGamepad();
+
 hangupBtn?.addEventListener("click", () => {
   cleanupPeer();
   setStatus("Idle");
+setDataStatus("closed");
 });
 
 switchCamBtn?.addEventListener("click", () => {
@@ -401,99 +444,10 @@ flipRemoteBtn?.addEventListener("click", () => {
   log("Remote flip:", isRemoteFlipped ? "ON" : "OFF");
 });
 
-// ---------- Gamepad -> send over data channel ----------
-
-let gpActiveIndex = null;
-let gpLast = { axes: [], buttonsPressed: [] };
-let gpLastSentAt = 0;
-
-function deadzone(v, dz=0.12){
-  const x = Number(v) || 0;
-  return (Math.abs(x) < dz) ? 0 : x;
-}
-
-function snapshotGamepad(gp){
-  const axes = (gp?.axes || []).map(v => deadzone(v));
-  const buttonsPressed = (gp?.buttons || []).map(b => !!b.pressed);
-  return { axes, buttonsPressed };
-}
-
-function sameState(a, b){
-  if (!a || !b) return false;
-  if ((a.axes?.length || 0) !== (b.axes?.length || 0)) return false;
-  if ((a.buttonsPressed?.length || 0) !== (b.buttonsPressed?.length || 0)) return false;
-  for (let i=0;i<(a.axes?.length||0);i++){
-    if (Math.abs((a.axes[i]||0)-(b.axes[i]||0)) > 0.02) return false;
-  }
-  for (let i=0;i<(a.buttonsPressed?.length||0);i++){
-    if (!!a.buttonsPressed[i] !== !!b.buttonsPressed[i]) return false;
-  }
-  return true;
-}
-
-function updateGpUI(localState, sentOk){
-  if (gpSendState) gpSendState.textContent = sentOk ? "sending" : (dataConn?.open ? "ready" : "not connected");
-  if (gpLocalEl) gpLocalEl.textContent = localState ? formatGpState({ ...localState, ts: Date.now() }) : "(idle)";
-}
-
-function gpLoop(now){
-  if (!gpEnabled){
-    requestAnimationFrame(gpLoop);
-    return;
-  }
-  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  const gp = (gpActiveIndex != null) ? pads[gpActiveIndex] : (pads && [...pads].find(p => p && p.connected));
-
-  if (!gp){
-    gpActiveIndex = null;
-    setGpStatus(gpEnabled ? "No gamepad" : "Gamepad disabled");
-    updateGpUI(null, false);
-    requestAnimationFrame(gpLoop);
-    return;
-  }
-
-  gpActiveIndex = gp.index;
-  setGpStatus(`Gamepad: ${gp.id || "connected"}`);
-
-  const snap = snapshotGamepad(gp);
-
-  // Update UI every frame
-  const canSend = !!(dataConn && dataConn.open);
-  updateGpUI(snap, canSend);
-
-  // Throttle sends to ~30Hz and only on change
-  if (canSend && (now - gpLastSentAt) > 33 && !sameState(snap, gpLast)){
-    gpLastSentAt = now;
-    gpLast = snap;
-    sendData({ t: "gp", ts: Date.now(), axes: snap.axes, buttonsPressed: snap.buttonsPressed });
-  }
-
-  requestAnimationFrame(gpLoop);
-}
-
-window.addEventListener("gamepadconnected", (e) => {
-  log("Gamepad connected:", e.gamepad?.id || "(unknown)");
-  setGpStatus(`Gamepad: ${e.gamepad?.id || "connected"}`);
+flipRemoteBtn?.addEventListener("click", () => {
+  setRemoteFlip(!isRemoteFlipped);
+  log("Remote flip:", isRemoteFlipped ? "ON" : "OFF");
 });
-
-window.addEventListener("gamepaddisconnected", (e) => {
-  log("Gamepad disconnected:", e.gamepad?.id || "(unknown)");
-  setGpStatus(gpEnabled ? "No gamepad" : "Gamepad disabled");
-  gpActiveIndex = null;
-});
-
-// Gamepad enable button (some browsers expose gamepads only after a user gesture)
-if (gpEnableBtn){
-  gpEnableBtn.addEventListener("click", () => {
-    gpEnabled = true;
-    setGpStatus("Waiting for gamepad… press any button");
-    log("Gamepad enabled: press any button on the controller to activate it.");
-  });
-}
-setGpStatus("Gamepad disabled");
-
-// Start polling loop (it will activate once enabled)
-requestAnimationFrame(gpLoop);
 
 // Nice default status
 setStatus("Idle");

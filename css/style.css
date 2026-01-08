@@ -20,10 +20,6 @@ video{width:100%;max-width:720px;border-radius:14px;background:#000;margin-top:1
 
 .log{background:#070b14;border:1px solid #223062;border-radius:12px;padding:10px;max-height:180px;overflow:auto;font-size:12px;white-space:pre-wrap;}
 
-.divider{height:1px;background:#223062;margin:14px 0;opacity:.8}
-
-code{background:#070b14;border:1px solid #223062;border-radius:10px;padding:4px 8px;font-size:12px}
-
 
 /* v8 layout helpers */
 .grid2{
@@ -40,3 +36,28 @@ code{background:#070b14;border:1px solid #223062;border-radius:10px;padding:4px 
 /* v9 presence */
 #selfVideo{ max-width: 320px; }
 #remotePerson{ max-width: 720px; }
+
+
+/* One-page columns */
+.col{display:flex;flex-direction:column}
+
+/* Ghost buttons */
+.btn.ghost{background:#1b2a55;border:1px solid #2a3a74}
+.btn.ghost:disabled{opacity:.5;cursor:not-allowed}
+
+/* Virtual gamepad */
+.vpad-grid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(70px, 1fr));
+  gap:10px;
+  justify-items:stretch;
+  align-items:stretch;
+  max-width: 360px;
+  margin: 10px auto 0 auto;
+}
+.vpad-grid button{min-height:64px}
+.vpad-grid button[data-cmd="UP"]{grid-column:2}
+.vpad-grid button[data-cmd="LEFT"]{grid-column:1;grid-row:2}
+.vpad-grid button[data-cmd="STOP"]{grid-column:2;grid-row:2}
+.vpad-grid button[data-cmd="RIGHT"]{grid-column:3;grid-row:2}
+.vpad-grid button[data-cmd="DOWN"]{grid-column:2;grid-row:3}

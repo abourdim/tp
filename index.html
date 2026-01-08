@@ -14,7 +14,8 @@
   </div>
 
   <div class="grid2">
-    <div class="card">
+    <div class="col">
+      <div class="card">
       <h2>Room</h2>
       <p class="muted">Open this same page on two devices, enter the same room code, then start & connect.</p>
 
@@ -31,27 +32,44 @@
       </div>
 
       <pre id="log" class="log" style="white-space:pre-wrap"></pre>
+    </div>
 
-      <div class="divider"></div>
-      <h2 style="margin-top:0">Gamepad</h2>
-      <p class="muted">Plug/pair a controller. Click Enable, then press any button. This page sends stick + button state to the other device.</p>
-      <div class="row" style="align-items:center; gap:10px; flex-wrap:wrap">
-        <div id="gpStatus" class="pill">No gamepad</div>
-        <button id="gpEnableBtn" class="btn secondary">Enable gamepad 🎮</button>
-        <div class="muted">Send:</div>
-        <code id="gpSendState">(idle)</code>
+      <div class="card">
+        <h2>Controls</h2>
+        <p class="muted small">Use these buttons to simulate a gamepad. Commands are sent to the other device over the data channel.</p>
+
+        <div class="vpad-grid">
+          <button class="btn big ghost vbtn" data-cmd="UP">⬆️</button>
+          <button class="btn big ghost vbtn" data-cmd="LEFT">⬅️</button>
+          <button class="btn big stop vbtn" data-cmd="STOP">⏹️</button>
+          <button class="btn big ghost vbtn" data-cmd="RIGHT">➡️</button>
+          <button class="btn big ghost vbtn" data-cmd="DOWN">⬇️</button>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <button class="btn big ghost vbtn" data-btn="A">A</button>
+          <button class="btn big ghost vbtn" data-btn="B">B</button>
+          <button class="btn big ghost vbtn" data-btn="X">X</button>
+          <button class="btn big ghost vbtn" data-btn="Y">Y</button>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <div class="pill small">Data: <span id="dataStatus">closed</span></div>
+          <div class="pill small">Last sent: <span id="lastSent">-</span></div>
+          <div class="pill small">Last received: <span id="lastRecv">-</span></div>
+        </div>
       </div>
 
-      <div class="row" style="align-items:flex-start; gap:12px; flex-wrap:wrap">
-        <div style="flex:1; min-width:240px">
-          <div class="muted">Local (what you send)</div>
-          <pre id="gpLocal" class="log" style="white-space:pre-wrap; min-height:90px"></pre>
+      <div class="card">
+        <h2>Test messages</h2>
+        <p class="muted small">Send text to the other device (for testing).</p>
+        <div class="row" style="justify-content:flex-start">
+          <input id="textInput" class="input" placeholder="Type a message…" style="flex:1;min-width:220px" />
+          <button id="sendTextBtn" class="btn big">Send ✉️</button>
         </div>
-        <div style="flex:1; min-width:240px">
-          <div class="muted">Remote (what you receive)</div>
-          <pre id="gpRemote" class="log" style="white-space:pre-wrap; min-height:90px"></pre>
-        </div>
+        <pre id="msgLog" class="log" style="white-space:pre-wrap"></pre>
       </div>
+
     </div>
 
     <div class="card">
