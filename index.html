@@ -1,54 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
   <title>Telepresence</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css">
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
-  <h2>Telepresence</h2>
 
-  <div class="card">
-    <input id="room" value="demo" placeholder="Room code" />
-    <button id="start">Start camera</button>
-    <button id="connect">Connect</button>
-    <span id="status" style="margin-left:10px;"></span>
-  </div>
+<h2>Telepresence (stable)</h2>
 
-  <div class="card">
-    <video id="local" autoplay playsinline muted></video>
-    <video id="remote" autoplay playsinline></video>
-  </div>
+<div class="card">
+  <input id="room" placeholder="Room code" value="demo">
+  <button id="startCam">Start camera</button>
+  <button id="connect">Connect</button>
+  <div id="status">Idle</div>
+</div>
 
-  <div class="card">
-    <h3>Virtual Controls</h3>
-    <div class="dpad">
-      <button class="ctl" data-cmd="UP">▲</button>
-      <div>
-        <button class="ctl" data-cmd="LEFT">◀</button>
-        <button class="ctl" data-cmd="STOP">■</button>
-        <button class="ctl" data-cmd="RIGHT">▶</button>
-      </div>
-      <button class="ctl" data-cmd="DOWN">▼</button>
+<div class="card">
+  <video id="localVideo" autoplay muted playsinline></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+</div>
+
+<div class="card">
+  <h3>Controls</h3>
+  <div class="dpad">
+    <button data-cmd="UP">▲</button>
+    <div>
+      <button data-cmd="LEFT">◀</button>
+      <button data-cmd="STOP">■</button>
+      <button data-cmd="RIGHT">▶</button>
     </div>
-
-    <div class="buttons">
-      <button class="ctl" data-btn="A">A</button>
-      <button class="ctl" data-btn="B">B</button>
-      <button class="ctl" data-btn="X">X</button>
-      <button class="ctl" data-btn="Y">Y</button>
-    </div>
+    <button data-cmd="DOWN">▼</button>
   </div>
+</div>
 
-  <div class="card">
-    <h3>Text Test</h3>
-    <input id="text" placeholder="Type message" />
-    <button id="send" class="ctl">Send</button>
-    <pre id="log"></pre>
-  </div>
+<div class="card">
+  <input id="textInput" placeholder="Send text">
+  <button id="sendText">Send</button>
+  <pre id="log"></pre>
+</div>
 
-  <script src="js/app.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
