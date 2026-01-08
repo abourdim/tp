@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kid Telepresence</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="title">Kid Telepresence</div>
+    <div id="status" class="pill">Idle</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Room</h2>
+      <p class="muted">Open this same page on two devices, enter the same room code, then start & connect.</p>
+
+      <label>Room code</label>
+      <input id="roomInput" class="input" placeholder="e.g. 1234" value="demo" />
+
+      <div class="row">
+        <button id="startBtn" class="btn big">Start camera 🎥</button>
+        <button id="connectBtn" class="btn big">Connect ✅</button>
+        <button id="hangupBtn" class="btn big ghost" style="display:none">Hang up ✋</button>
+      </div>
+
+      <pre id="log" class="log" style="white-space:pre-wrap"></pre>
+    </div>
+
+    <div class="card">
+      <h2>Live</h2>
+      <div class="grid2">
+        <div>
+          <div class="muted">You</div>
+          <video id="localVideo" class="video" autoplay playsinline muted></video>
+        </div>
+        <div>
+          <div class="muted">Other device</div>
+          <video id="remoteVideo" class="video" autoplay playsinline></video>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Load PeerJS then app logic
+    const s1 = document.createElement('script');
+    s1.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+    s1.onload = () => {
+      const s2 = document.createElement('script');
+      s2.src = 'js/app.js';
+      document.body.appendChild(s2);
+    };
+    document.body.appendChild(s1);
+  </script>
+
+</body>
+</html>
