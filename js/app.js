@@ -11,6 +11,7 @@ const roomInput = $("roomInput");
 const startBtn = $("startBtn");
 const switchCamBtn = $("switchCamBtn");
 const flipBtn = $("flipBtn");
+const flipRemoteBtn = $("flipRemoteBtn");
 const connectBtn = $("connectBtn");
 const hangupBtn = $("hangupBtn");
 const localVideo = $("localVideo");
@@ -43,6 +44,15 @@ function setMirror(on){
   if (!localVideo) return;
   localVideo.classList.toggle("mirrored", isMirrored);
   if (flipBtn) flipBtn.textContent = isMirrored ? "Unmirror 🪞" : "Mirror self 🪞";
+
+let isRemoteMirrored = false;
+function setRemoteMirror(on){
+  isRemoteMirrored = !!on;
+  if (!remoteVideo) return;
+  remoteVideo.classList.toggle("mirrored", isRemoteMirrored);
+  if (flipRemoteBtn) flipRemoteBtn.textContent = isRemoteMirrored ? "Unflip remote ↔️" : "Flip remote ↔️";
+}
+
 }
 
 async function refreshVideoDevices(){
@@ -149,6 +159,7 @@ async function ensureLocalStream(){
   // Enable camera tools once permissions are granted
   switchCamBtn && (switchCamBtn.disabled = false);
   flipBtn && (flipBtn.disabled = false);
+  flipRemoteBtn && (flipRemoteBtn.disabled = false);
   await refreshVideoDevices();
   setMirror(true);
 
@@ -295,6 +306,11 @@ switchCamBtn?.addEventListener("click", () => {
 flipBtn?.addEventListener("click", () => {
   setMirror(!isMirrored);
   log("Mirror:", isMirrored ? "ON" : "OFF");
+});
+
+flipRemoteBtn?.addEventListener("click", () => {
+  setRemoteMirror(!isRemoteMirrored);
+  log("Remote flip:", isRemoteMirrored ? "ON" : "OFF");
 });
 
 // Nice default status
