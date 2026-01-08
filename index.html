@@ -31,6 +31,26 @@
       </div>
 
       <pre id="log" class="log" style="white-space:pre-wrap"></pre>
+
+      <div class="divider"></div>
+      <h2 style="margin-top:0">Gamepad</h2>
+      <p class="muted">Plug/pair a controller. When connected, this page sends stick + button state to the other device.</p>
+      <div class="row" style="align-items:center; gap:10px; flex-wrap:wrap">
+        <div id="gpStatus" class="pill">No gamepad</div>
+        <div class="muted">Send:</div>
+        <code id="gpSendState">(idle)</code>
+      </div>
+
+      <div class="row" style="align-items:flex-start; gap:12px; flex-wrap:wrap">
+        <div style="flex:1; min-width:240px">
+          <div class="muted">Local (what you send)</div>
+          <pre id="gpLocal" class="log" style="white-space:pre-wrap; min-height:90px"></pre>
+        </div>
+        <div style="flex:1; min-width:240px">
+          <div class="muted">Remote (what you receive)</div>
+          <pre id="gpRemote" class="log" style="white-space:pre-wrap; min-height:90px"></pre>
+        </div>
+      </div>
     </div>
 
     <div class="card">
