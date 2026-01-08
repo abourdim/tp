@@ -1,419 +1,267 @@
-// Kid Telepresence (simple, single-page, no roles)
-// How it works:
-// - Both devices open the same page and enter the same room code
-// - One device becomes "host" automatically (first to claim <room>-host ID)
-// - The other becomes "guest" and calls the host
-// - Both send+receive audio/video in a single PeerJS call
+// Telepresence: audio/video call + data channel (commands/text) over PeerJS.
+// No explicit "role": first peer that successfully claims ROOM-host becomes the host,
+// others become guests and connect to the host.
 
-const $ = (id) => document.getElementById(id);
+let peer = null;
+let mediaCall = null;
+let dataConn = null;
 
-const roomInput = $("roomInput");
-const startBtn = $("startBtn");
-const switchCamBtn = $("switchCamBtn");
-const flipBtn = $("flipBtn");
-const flipRemoteBtn = $("flipRemoteBtn");
-const connectBtn = $("connectBtn");
-const hangupBtn = $("hangupBtn");
-const localVideo = $("localVideo");
-const remoteVideo = $("remoteVideo");
-const statusPill = $("status");
-const logEl = $("log");
+let localStream = null;
+let dataReady = false;
 
-const rxLog = $("rxLog");
-const textInput = $("textInput");
-const sendTextBtn = $("sendTextBtn");
+const el = (id) => document.getElementById(id);
+const logEl = el("log");
+const statusEl = el("status");
 
-function setStatus(t){ if(statusPill) statusPill.textContent = t; }
-function log(...args){
-  const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
-  console.log(line);
-  if (logEl) logEl.textContent += line + "\n";
+function setStatus(msg) {
+  statusEl.textContent = msg;
 }
 
-function logRx(...args){
-  const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
-  console.log("[RX]", line);
-  if (rxLog) rxLog.textContent += line + "\n";
+function log(msg) {
+  logEl.textContent += msg + "\n";
+  logEl.scrollTop = logEl.scrollHeight;
 }
 
-function setDataConn(conn){
-  if (!conn) return;
-  try { dataConn?.close(); } catch {}
+function enableControls(on) {
+  document.querySelectorAll(".ctl").forEach((b) => {
+    b.disabled = !on;
+    b.style.opacity = on ? "1" : "0.4";
+  });
+}
+
+enableControls(false);
+setStatus("Not connected");
+
+async function startCamera() {
+  if (localStream) return;
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  el("local").srcObject = localStream;
+  log("Camera started");
+}
+
+el("start").addEventListener("click", async () => {
+  try {
+    await startCamera();
+  } catch (e) {
+    console.error(e);
+    log("Camera error: " + (e?.message || e));
+  }
+});
+
+function newMsgId() {
+  // crypto.randomUUID is not available on some older browsers.
+  return (self.crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function sendData(payload) {
+  if (!dataConn || !dataConn.open || !dataReady) {
+    log("❌ Not ready (data channel not open yet).");
+    return;
+  }
+  const msg = { ...payload, _id: newMsgId(), _ts: Date.now() };
+  dataConn.send(msg);
+  log("SEND " + JSON.stringify(msg));
+  // Basic timeout warning for ACK
+  const id = msg._id;
+  setTimeout(() => {
+    // If still connected, remind user if no ACK logged (best-effort; no state kept).
+    if (dataConn && dataConn.open) {
+      // no-op; ACK will appear in log if received
+    }
+  }, 1500);
+}
+
+function attachDataHandlers(conn) {
   dataConn = conn;
 
   conn.on("open", () => {
+    dataReady = true;
+    setStatus("Data channel open ✅");
     log("Data channel open ✅");
+    enableControls(true);
   });
+
   conn.on("data", (msg) => {
-    if (msg && typeof msg === "object"){
-      if (msg.type === "text") logRx("TEXT:", msg.text);
-      else if (msg.type === "cmd") logRx("CMD:", msg.cmd, msg.pressed ? "down" : "up");
-      else if (msg.type === "btn") logRx("BTN:", msg.id, msg.pressed ? "down" : "up");
-      else logRx(msg);
-    } else {
-      logRx(msg);
+    log("RECV " + JSON.stringify(msg));
+
+    // ACK handling
+    if (msg && msg.type === "ack" && msg._id) {
+      log("ACK ✅ " + msg._id);
+      return;
     }
-  });
-  conn.on("close", () => {
-    log("Data channel closed");
-  });
-  conn.on("error", (e) => {
-    log("Data channel error:", e?.message || String(e));
-  });
-}
-
-function sendMsg(obj){
-  if (!dataConn || !dataConn.open) return false;
-  try { dataConn.send(obj); return true; } catch { return false; }
-}
-
-let localStream = null;
-let peer = null;
-let call = null;
-let dataConn = null;
-
-let isHost = false;
-let hostId = null;
-
-// Camera switching / mirroring
-let videoDevices = [];
-let currentDeviceIndex = 0;
-let currentFacing = "user"; // user | environment
-let isMirrored = true;
-let isRemoteFlipped = false;
-
-function setMirror(on){
-  isMirrored = !!on;
-  if (!localVideo) return;
-  localVideo.classList.toggle("mirrored", isMirrored);
-  if (flipBtn) flipBtn.textContent = isMirrored ? "Unmirror 🪞" : "Mirror self 🪞";
-}
-
-function setRemoteFlip(on){
-  isRemoteFlipped = !!on;
-  if (!remoteVideo) return;
-  remoteVideo.classList.toggle("mirrored", isRemoteFlipped);
-  if (flipRemoteBtn) flipRemoteBtn.textContent = isRemoteFlipped ? "Unflip remote ↔️" : "Flip remote ↔️";
-}
-
-async function refreshVideoDevices(){
-  try{
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    videoDevices = devices.filter(d => d.kind === "videoinput");
-    // Keep index in range
-    if (videoDevices.length && currentDeviceIndex >= videoDevices.length) currentDeviceIndex = 0;
-  }catch(e){
-    // Some browsers require permissions before enumerateDevices returns labels
-    videoDevices = [];
-  }
-}
-
-async function replaceOutgoingVideoTrack(newTrack){
-  if (!localStream) return;
-  const old = localStream.getVideoTracks()[0];
-  if (old){
-    try{ localStream.removeTrack(old); }catch{}
-    try{ old.stop(); }catch{}
-  }
-  localStream.addTrack(newTrack);
-
-  // If we're in a call, replace the sender's track without renegotiation.
-  const pc = call?.peerConnection;
-  const sender = pc?.getSenders?.().find(s => s.track && s.track.kind === "video");
-  if (sender?.replaceTrack){
-    try{ await sender.replaceTrack(newTrack); }catch(e){ log("replaceTrack failed:", e?.message || String(e)); }
-  }
-}
-
-async function switchCamera(){
-  if (!localStream){
-    log("Switch camera: start camera first");
-    return;
-  }
-
-  setStatus("Switching camera…");
-  await refreshVideoDevices();
-
-  try{
-    let videoConstraint = null;
-
-    if (videoDevices.length > 1){
-      // Cycle actual camera devices when available (desktop + many Androids)
-      currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-      const deviceId = videoDevices[currentDeviceIndex].deviceId;
-      videoConstraint = { deviceId: { exact: deviceId } };
-      log("Switching to device:", videoDevices[currentDeviceIndex].label || deviceId);
-    } else {
-      // Fallback: try toggling facingMode (mobile)
-      currentFacing = (currentFacing === "user") ? "environment" : "user";
-      // Try exact first, then ideal
-      videoConstraint = { facingMode: { exact: currentFacing } };
-      log("Switching facingMode (exact):", currentFacing);
-    }
-
-    let s;
-    try{
-      s = await navigator.mediaDevices.getUserMedia({ video: videoConstraint, audio: false });
-    }catch(e){
-      // If facingMode exact fails, retry with ideal
-      if (!videoDevices.length){
-        log("Exact facingMode failed, retry ideal:", e?.name || "", e?.message || String(e));
-        s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: currentFacing } }, audio: false });
-      } else {
-        throw e;
+    if (msg && msg._id) {
+      // reply ACK
+      if (dataConn && dataConn.open) {
+        dataConn.send({ type: "ack", _id: msg._id });
       }
     }
-
-    const [newTrack] = s.getVideoTracks();
-    if (!newTrack) throw new Error("No video track from camera");
-
-    await replaceOutgoingVideoTrack(newTrack);
-    // Keep local preview running (same MediaStream object)
-    localVideo.srcObject = localStream;
-    await localVideo.play().catch(()=>{});
-
-    // Helpful default: mirror for front cam, unmirror for back cam
-    if (!videoDevices.length) setMirror(currentFacing === "user");
-
-    setStatus("Camera switched ✅");
-    log("Camera switched. Track:", `${newTrack.label || "video"}`);
-  } catch (e) {
-    log("Switch camera failed:", e?.name || "", e?.message || String(e));
-    setStatus("Switch failed ❌");
-    alert("Could not switch camera on this device/browser.");
-  }
-}
-
-function randomId(n=6){
-  return Math.random().toString(16).slice(2, 2+n);
-}
-
-async function ensureLocalStream(){
-  if (localStream) return localStream;
-  setStatus("Requesting camera/mic…");
-  localStream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user" },
-    audio: true
   });
-  localVideo.srcObject = localStream;
-  await localVideo.play().catch(()=>{});
-  // Enable camera tools once permissions are granted
-  switchCamBtn && (switchCamBtn.disabled = false);
-  flipBtn && (flipBtn.disabled = false);
-  // Remote flip is a UI-only transform; enable once app is interactive
-  flipRemoteBtn && (flipRemoteBtn.disabled = false);
-  await refreshVideoDevices();
-  setMirror(true);
 
-  // Default: do not flip remote
-  setRemoteFlip(false);
-
-  setStatus("Camera ON 🎥");
-  log("Local stream tracks:", localStream.getTracks().map(t=>`${t.kind}:${t.readyState}`).join(", "));
-  return localStream;
-}
-
-function cleanupPeer(){
-  try { call?.close(); } catch {}
-  call = null;
-  try { peer?.destroy(); } catch {}
-  peer = null;
-  isHost = false;
-  hostId = null;
-  if (remoteVideo) remoteVideo.srcObject = null;
-  // Keep flip state (UI preference) but ensure class is applied consistently
-  setRemoteFlip(isRemoteFlipped);
-  hangupBtn.style.display = "none";
-}
-
-function attachCallHandlers(c){
-  call = c;
-  hangupBtn.style.display = "";
-  c.on("stream", (remoteStream) => {
-    log("Remote stream received:", remoteStream.getTracks().map(t=>`${t.kind}:${t.readyState}`).join(", "));
-    remoteVideo.srcObject = remoteStream;
-    remoteVideo.play().catch(()=>{});
-    // Re-apply remote flip preference after the element starts rendering
-    setRemoteFlip(isRemoteFlipped);
-    setStatus("Connected ✅");
+  conn.on("close", () => {
+    dataReady = false;
+    enableControls(false);
+    setStatus("Data channel closed");
+    log("Data channel closed");
   });
-  c.on("close", () => {
-    log("Call closed");
-    setStatus("Disconnected");
-    if (remoteVideo) remoteVideo.srcObject = null;
-    hangupBtn.style.display = "none";
-  });
-  c.on("error", (e) => {
-    log("Call error:", e?.message || String(e));
-    setStatus("Call error ❌");
+
+  conn.on("error", (err) => {
+    console.error(err);
+    log("Data channel error: " + (err?.message || err));
   });
 }
 
-async function connect(){
-  const roomCode = (roomInput.value || "").trim();
-  if (!roomCode){
-    alert("Enter a room code (same on both devices).");
-    return;
-  }
+function attachCallHandlers(call) {
+  mediaCall = call;
+  call.on("stream", (remoteStream) => {
+    el("remote").srcObject = remoteStream;
+    log("Remote stream attached");
+  });
+  call.on("close", () => log("Media call closed"));
+  call.on("error", (err) => {
+    console.error(err);
+    log("Media call error: " + (err?.message || err));
+  });
+}
 
-  await ensureLocalStream();
+async function connectRoom() {
+  const room = el("room").value.trim() || "demo";
+  await startCamera();
 
-  // Reset any previous connection
-  cleanupPeer();
+  // Try to become host first.
+  const hostId = `${room}-host`;
+  const guestId = `${room}-guest-${Math.random().toString(36).slice(2, 8)}`;
 
-  hostId = `${encodeURIComponent(roomCode)}-host`;
   setStatus("Connecting…");
-  log("Room:", roomCode, "Host ID:", hostId);
+  log("Connecting… room=" + room);
 
-  // Try to become host first (no role selection).
-  // If the ID is already taken, we'll become guest automatically.
-  let triedGuest = false;
+  function startAsHost() {
+    peer = new Peer(hostId);
+    peer.on("open", () => {
+      setStatus("Host ready ✅");
+      log("Peer open as HOST: " + hostId);
+      // Host waits for incoming connections/calls.
+    });
 
-  function becomeGuest(){
-    if (triedGuest) return;
-    triedGuest = true;
-
-    const guestId = `${encodeURIComponent(roomCode)}-guest-${randomId()}`;
-    log("Host already exists -> becoming guest:", guestId);
-    peer = new Peer(guestId, { debug: 2 });
-
-    peer.on("open", (id) => {
-      log("Peer open (guest):", id);
-      setStatus("Calling other device…");
-      const c = peer.call(hostId, localStream);
-      attachCallHandlers(c);
-      // Data channel to host
-      const dc = peer.connect(hostId, { reliable: true });
-      dc.on('open', () => log('Data channel connecting…'));
-      setDataConn(dc);
+    peer.on("call", (incomingCall) => {
+      log("Incoming media call");
+      incomingCall.answer(localStream);
+      attachCallHandlers(incomingCall);
     });
 
     peer.on("connection", (conn) => {
-    log("Incoming data connection from:", conn.peer);
-    setDataConn(conn);
-  });
-
-  peer.on("call", (incoming) => {
-      // In case both sides race, still answer.
-      log("Incoming call (guest) from:", incoming.peer);
-      incoming.answer(localStream);
-      attachCallHandlers(incoming);
+      log("Incoming data connection");
+      attachDataHandlers(conn);
     });
 
-    peer.on("error", (e) => {
-      log("Peer error (guest):", e?.type || "", e?.message || String(e));
-      setStatus("Error ❌");
+    peer.on("error", (err) => {
+      // If host id is taken, become guest.
+      if (err && (err.type === "unavailable-id" || (err.message || "").includes("unavailable"))) {
+        log("Host ID taken → switching to GUEST");
+        try { peer.destroy(); } catch {}
+        startAsGuest();
+        return;
+      }
+      console.error(err);
+      log("Peer error: " + (err?.type || "") + " " + (err?.message || err));
     });
   }
 
-  peer = new Peer(hostId, { debug: 2 });
+  function startAsGuest() {
+    peer = new Peer(guestId);
 
-  peer.on("open", (id) => {
-    isHost = true;
-    log("Peer open (host):", id);
-    setStatus("Waiting for other device…");
-  });
+    peer.on("open", () => {
+      setStatus("Guest connecting…");
+      log("Peer open as GUEST: " + guestId);
 
-  peer.on("call", (incoming) => {
-    log("Incoming call (host) from:", incoming.peer);
-    incoming.answer(localStream);
-    attachCallHandlers(incoming);
-  });
+      // Connect data first
+      const conn = peer.connect(hostId, { reliable: true });
+      attachDataHandlers(conn);
 
-  peer.on("error", (e) => {
-    log("Peer error (host attempt):", e?.type || "", e?.message || String(e));
-    if (e?.type === "unavailable-id"){
-      // Host already taken -> guest
-      try { peer.destroy(); } catch {}
-      peer = null;
-      becomeGuest();
-    } else {
-      setStatus("Error ❌");
-    }
-  });
+      // Start media call
+      const call = peer.call(hostId, localStream);
+      attachCallHandlers(call);
+
+      setStatus("Calling host…");
+      log("Calling host: " + hostId);
+    });
+
+    peer.on("call", (incomingCall) => {
+      // In case host calls back (shouldn't), answer.
+      log("Incoming media call (unexpected, answering)");
+      incomingCall.answer(localStream);
+      attachCallHandlers(incomingCall);
+    });
+
+    peer.on("connection", (conn) => {
+      // In case host initiates data (shouldn't), accept.
+      log("Incoming data connection (unexpected)");
+      attachDataHandlers(conn);
+    });
+
+    peer.on("error", (err) => {
+      console.error(err);
+      log("Peer error: " + (err?.type || "") + " " + (err?.message || err));
+      setStatus("Peer error");
+    });
+  }
+
+  startAsHost();
 }
 
-startBtn?.addEventListener("click", async () => {
-  try {
-    await ensureLocalStream();
-  } catch (e) {
-    log("getUserMedia failed:", e?.name || "", e?.message || String(e));
-    setStatus("Permission blocked ❌");
-    alert("Camera/mic permission blocked or not supported.\n\nTip: Use HTTPS (GitHub Pages) and allow permissions.");
-  }
-});
-
-connectBtn?.addEventListener("click", async () => {
-  try {
-    await connect();
-  } catch (e) {
-    log("Connect failed:", e?.message || String(e));
-    setStatus("Connect failed ❌");
-  }
-});
-
-hangupBtn?.addEventListener("click", () => {
-  cleanupPeer();
-  setStatus("Idle");
-});
-
-switchCamBtn?.addEventListener("click", () => {
-  switchCamera();
-});
-
-flipBtn?.addEventListener("click", () => {
-  setMirror(!isMirrored);
-  log("Mirror:", isMirrored ? "ON" : "OFF");
-});
-
-flipRemoteBtn?.addEventListener("click", () => {
-  setRemoteFlip(!isRemoteFlipped);
-  log("Remote flip:", isRemoteFlipped ? "ON" : "OFF");
-});
-
-flipRemoteBtn?.addEventListener("click", () => {
-  setRemoteFlip(!isRemoteFlipped);
-  log("Remote flip:", isRemoteFlipped ? "ON" : "OFF");
-});
-
-sendTextBtn?.addEventListener("click", () => {
-  const t = (textInput?.value || "").trim();
-  if (!t) return;
-  if (!sendMsg({ type: "text", text: t })) {
-    log("Text not sent (not connected yet).");
-    return;
-  }
-  log("Text sent:", t);
-  textInput.value = "";
-});
-
-textInput?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") sendTextBtn?.click();
-});
-
-function bindVirtualControls(){
-  // D-pad: send pressed true on down, false on up/leave
-  document.querySelectorAll("[data-dir]").forEach((btn) => {
-    const cmd = btn.getAttribute("data-dir");
-    const down = (e) => { e.preventDefault(); sendMsg({ type: "cmd", cmd, pressed: true }); };
-    const up = (e) => { e.preventDefault(); sendMsg({ type: "cmd", cmd, pressed: false }); };
-    btn.addEventListener("pointerdown", down);
-    btn.addEventListener("pointerup", up);
-    btn.addEventListener("pointercancel", up);
-    btn.addEventListener("pointerleave", up);
+el("connect").addEventListener("click", () => {
+  connectRoom().catch((e) => {
+    console.error(e);
+    log("Connect error: " + (e?.message || e));
+    setStatus("Connect error");
   });
+});
 
-  // Buttons: click sends a tap (down then up)
-  document.querySelectorAll("[data-btn]").forEach((btn) => {
-    const id = btn.getAttribute("data-btn");
-    btn.addEventListener("pointerdown", (e) => { e.preventDefault(); sendMsg({ type: "btn", id, pressed: true }); });
-    btn.addEventListener("pointerup", (e) => { e.preventDefault(); sendMsg({ type: "btn", id, pressed: false }); });
-    btn.addEventListener("pointercancel", (e) => { e.preventDefault(); sendMsg({ type: "btn", id, pressed: false }); });
-    btn.addEventListener("pointerleave", (e) => { e.preventDefault(); sendMsg({ type: "btn", id, pressed: false }); });
-  });
-}
+// Virtual controls: press & hold for direction, click for buttons.
+document.querySelectorAll("[data-cmd]").forEach((btn) => {
+  const cmd = btn.dataset.cmd;
 
-bindVirtualControls();
+  const press = (pressed) => {
+    sendData({ type: "cmd", cmd, pressed });
+  };
 
-// Nice default status
-setStatus("Idle");
+  btn.addEventListener("mousedown", () => press(true));
+  btn.addEventListener("mouseup", () => press(false));
+  btn.addEventListener("mouseleave", () => press(false));
+
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    press(true);
+  }, { passive: false });
+
+  btn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    press(false);
+  }, { passive: false });
+});
+
+document.querySelectorAll("[data-btn]").forEach((btn) => {
+  const id = btn.dataset.btn;
+
+  const press = (pressed) => {
+    sendData({ type: "btn", id, pressed });
+  };
+
+  btn.addEventListener("mousedown", () => press(true));
+  btn.addEventListener("mouseup", () => press(false));
+  btn.addEventListener("mouseleave", () => press(false));
+
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    press(true);
+  }, { passive: false });
+
+  btn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    press(false);
+  }, { passive: false });
+});
+
+el("send").addEventListener("click", () => {
+  const text = el("text").value || "";
+  sendData({ type: "text", text });
+});
