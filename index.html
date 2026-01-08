@@ -23,6 +23,7 @@
 
       <div class="row">
         <button id="startBtn" class="btn big">Start camera 🎥</button>
+        <button id="muteMicBtn" class="btn big ghost" disabled>Mute mic 🔇</button>
         <button id="switchCamBtn" class="btn big ghost" disabled>Switch camera 🔄</button>
         <button id="flipBtn" class="btn big ghost" disabled>Mirror self 🪞</button>
         <button id="flipRemoteBtn" class="btn big ghost" disabled>Flip remote ↔️</button>
@@ -35,15 +36,10 @@
 
     <div class="card">
       <h2>Live</h2>
-      <div class="grid2">
-        <div>
-          <div class="muted">You</div>
-          <video id="localVideo" class="video" autoplay playsinline muted></video>
-        </div>
-        <div>
-          <div class="muted">Other device</div>
-          <video id="remoteVideo" class="video" autoplay playsinline></video>
-        </div>
+      <div class="muted">Other device</div>
+      <div class="videoStage" aria-label="Remote video with local thumbnail">
+        <video id="remoteVideo" class="video" autoplay playsinline></video>
+        <video id="localVideo" class="videoThumb" autoplay playsinline muted></video>
       </div>
     </div>
 

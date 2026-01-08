@@ -9,6 +9,7 @@ const $ = (id) => document.getElementById(id);
 
 const roomInput = $("roomInput");
 const startBtn = $("startBtn");
+const muteMicBtn = $("muteMicBtn");
 const switchCamBtn = $("switchCamBtn");
 const flipBtn = $("flipBtn");
 const flipRemoteBtn = $("flipRemoteBtn");
@@ -148,6 +149,17 @@ let currentDeviceIndex = 0;
 let currentFacing = "user"; // user | environment
 let isMirrored = true;
 let isRemoteFlipped = false;
+let isMicMuted = false;
+
+function setMicMuted(on){
+  isMicMuted = !!on;
+  const tracks = localStream?.getAudioTracks?.() || [];
+  tracks.forEach(t => { t.enabled = !isMicMuted; });
+  if (muteMicBtn){
+    muteMicBtn.textContent = isMicMuted ? "Unmute mic 🎙️" : "Mute mic 🔇";
+    muteMicBtn.classList.toggle("stop", isMicMuted);
+  }
+}
 
 function setMirror(on){
   isMirrored = !!on;
@@ -265,6 +277,7 @@ async function ensureLocalStream(){
   localVideo.srcObject = localStream;
   await localVideo.play().catch(()=>{});
   // Enable camera tools once permissions are granted
+  muteMicBtn && (muteMicBtn.disabled = false);
   switchCamBtn && (switchCamBtn.disabled = false);
   flipBtn && (flipBtn.disabled = false);
   // Remote flip is a UI-only transform; enable once app is interactive
@@ -272,12 +285,32 @@ async function ensureLocalStream(){
   await refreshVideoDevices();
   setMirror(true);
 
+  // Default: mic unmuted
+  setMicMuted(false);
+
   // Default: do not flip remote
   setRemoteFlip(false);
 
   setStatus("Camera ON 🎥");
   log("Local stream tracks:", localStream.getTracks().map(t=>`${t.kind}:${t.readyState}`).join(", "));
   return localStream;
+}
+
+function stopLocalMedia(){
+  if (!localStream) return;
+  try {
+    localStream.getTracks().forEach(t => {
+      try { t.stop(); } catch {}
+    });
+  } finally {
+    localStream = null;
+    if (localVideo) localVideo.srcObject = null;
+    // Disable camera tools until user starts again
+    muteMicBtn && (muteMicBtn.disabled = true);
+    switchCamBtn && (switchCamBtn.disabled = true);
+    flipBtn && (flipBtn.disabled = true);
+    flipRemoteBtn && (flipRemoteBtn.disabled = true);
+  }
 }
 
 function cleanupPeer(){
@@ -451,6 +484,7 @@ connectBtn?.addEventListener("click", async () => {
 
 hangupBtn?.addEventListener("click", () => {
   cleanupPeer();
+  stopLocalMedia();
   enableControls(false);
   setStatus("Idle");
 });
@@ -467,6 +501,15 @@ flipBtn?.addEventListener("click", () => {
 flipRemoteBtn?.addEventListener("click", () => {
   setRemoteFlip(!isRemoteFlipped);
   log("Remote flip:", isRemoteFlipped ? "ON" : "OFF");
+});
+
+muteMicBtn?.addEventListener("click", () => {
+  if (!localStream){
+    log("Mute mic: start camera first");
+    return;
+  }
+  setMicMuted(!isMicMuted);
+  log("Mic:", isMicMuted ? "MUTED" : "ON");
 });
 
 
