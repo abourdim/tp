@@ -1986,3 +1986,17 @@ button.disabled{
 .row-room-mb .card .hint{
   margin-top: auto;
 }
+
+/* === Thumb tweak: smaller + draggable === */
+.videoThumb{
+  width: min(26vw, 170px);
+  z-index: 5;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Ensure decorative pseudo-elements never block clicks */
+.card::before,
+.card::after{
+  pointer-events: none;
+}

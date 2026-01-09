@@ -76,6 +76,69 @@ remoteFsBtn?.addEventListener("click", toggleRemoteFullscreen);
 document.addEventListener("fullscreenchange", updateFsButton);
 updateFsButton();
 
+// ---- Local thumbnail: smaller + draggable ----
+(function initThumbDrag(){
+  const el = localVideo;
+  const stage = videoStage;
+  if (!el || !stage) return;
+
+  el.style.touchAction = "none";
+  el.style.cursor = "grab";
+
+  let dragging = false;
+  let startX = 0, startY = 0;
+  let offsetX = 0, offsetY = 0;
+
+  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+  el.addEventListener("pointerdown", (ev) => {
+    dragging = true;
+    el.setPointerCapture(ev.pointerId);
+    el.style.cursor = "grabbing";
+
+    const stageRect = stage.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    startX = ev.clientX;
+    startY = ev.clientY;
+
+    // Current top-left relative to stage
+    offsetX = elRect.left - stageRect.left;
+    offsetY = elRect.top - stageRect.top;
+
+    // switch from right/bottom anchoring to left/top anchoring
+    el.style.right = "auto";
+    el.style.bottom = "auto";
+    el.style.left = offsetX + "px";
+    el.style.top = offsetY + "px";
+  });
+
+  el.addEventListener("pointermove", (ev) => {
+    if (!dragging) return;
+    const stageRect = stage.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+
+    const newLeft = offsetX + dx;
+    const newTop  = offsetY + dy;
+
+    const maxLeft = stageRect.width - elRect.width;
+    const maxTop  = stageRect.height - elRect.height;
+
+    el.style.left = clamp(newLeft, 8, maxLeft - 8) + "px";
+    el.style.top  = clamp(newTop,  8, maxTop - 8) + "px";
+  });
+
+  function endDrag(){
+    if (!dragging) return;
+    dragging = false;
+    el.style.cursor = "grab";
+  }
+  el.addEventListener("pointerup", endDrag);
+  el.addEventListener("pointercancel", endDrag);
+})();
+
 
 function setStatus(t){
   // Keep the chip-dot span intact; only update the text span.
@@ -147,6 +210,7 @@ function setDataConn(conn){
                   (msg.type === "btn") ? "BUTTONS" :
                   (msg.type === "text") ? "TEXT" : "PEER";
       logEvent({dir:"RX", src, msg: _fmt(msg)});
+      markPeerActivity();
 
       // Forward received commands to micro:bit if bridge enabled
       if (mbBridgeEnabled) forwardToMicrobitFromPeer(msg);
@@ -160,6 +224,7 @@ function setDataConn(conn){
     }
   });
   conn.on("close", () => {
+    safetyStop("peer disconnect");
     log("Data channel closed");
     enableControls(false);
     // If media is still up, we may still be "connected" video-wise, so don't force red.
@@ -219,6 +284,52 @@ let dataConn = null;
 // micro:bit BLE UART bridge
 let microbit = null;
 let mbBridgeEnabled = false;
+    stopSafetyWatchdog();
+// ---- Safety: auto STOP on disconnect / inactivity ----
+let _lastPeerControlMs = Date.now();
+let _safetyTimer = null;
+const SAFETY_INACTIVITY_MS = 900;   // no commands for this long -> STOP
+const SAFETY_CHECK_MS = 250;
+
+function markPeerActivity(){
+  _lastPeerControlMs = Date.now();
+}
+
+async function safetyStop(reason=""){
+  // Only meaningful when we are bridging to a micro:bit robot
+  if (!(mbBridgeEnabled && microbit && microbit.connected)) {
+    // still log the event for visibility
+    logEvent({dir:"SYS", src:"SAFETY", msg:`auto-stop (${reason}) skipped (bridge off or micro:bit not connected)`});
+    return;
+  }
+  try{
+    const line = "CMD STOP 1";
+    await microbit.sendLine(line);
+    logEvent({dir:"TX", src:"MB", msg: `${line}  // auto-stop: ${reason}`});
+  } catch(e){
+    logEvent({dir:"SYS", src:"SAFETY", msg:`auto-stop failed: ${(e?.message||e)}`});
+  }
+}
+
+function startSafetyWatchdog(){
+  if (_safetyTimer) return;
+  _lastPeerControlMs = Date.now();
+  _safetyTimer = setInterval(() => {
+    const idle = Date.now() - _lastPeerControlMs;
+    if (idle > SAFETY_INACTIVITY_MS){
+      // trigger once per inactivity window
+      _lastPeerControlMs = Date.now();
+      safetyStop("inactivity");
+    }
+  }, SAFETY_CHECK_MS);
+}
+
+function stopSafetyWatchdog(){
+  if (_safetyTimer){
+    clearInterval(_safetyTimer);
+    _safetyTimer = null;
+  }
+}
 
 let isHost = false;
 let hostId = null;
@@ -447,6 +558,7 @@ function attachCallHandlers(c){
   // (The peer id is available immediately; no need to wait for stream.)
   ensureDataTo(c.peer);
   c.on("close", () => {
+    safetyStop("call closed");
     log("Call closed");
     setStatus("Disconnected");
     setConnStatus("Not connected", false);
@@ -769,6 +881,7 @@ async function forwardToMicrobitFromPeer(msg){
     onLog: (t) => logEvent({dir:"SYS", src:"MB", msg:String(t)}),
     onRx: (t) => logEvent({dir:"RX", src:"MB", msg:String(t)}),
     onConnectionChange: (ok) => {
+      if (!ok) stopSafetyWatchdog();
       mbSetStatus(ok ? "Connected" : "Disconnected", ok);
       mbDisconnectBtn && (mbDisconnectBtn.disabled = !ok);
       mbSendTestBtn && (mbSendTestBtn.disabled = !ok);
@@ -812,6 +925,7 @@ async function forwardToMicrobitFromPeer(msg){
 
   mbBridgeOnBtn?.addEventListener("click", () => {
     mbBridgeEnabled = true;
+    startSafetyWatchdog();
     logEvent({dir:"SYS", src:"MB", msg:"bridge enabled (peer → micro:bit)"});
   });
   mbBridgeOffBtn?.addEventListener("click", () => {
@@ -821,4 +935,3 @@ async function forwardToMicrobitFromPeer(msg){
 })();
 setStatus("Idle");
 setConnStatus("Not connected", false);
-
