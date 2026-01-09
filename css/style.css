@@ -1334,13 +1334,13 @@ button {
 }
 
 .site-logo {
-    width: 80px;   /* adjust size */
+    width: 140px;   /* big logo */
     height: auto;
 	color: #ffffff; /* logo will take this color */
 }
 
 .animated-logo {
-  width: 80px;
+  width: 140px;
   transition: transform 0.5s ease, filter 0.5s ease;
 }
 
@@ -1351,13 +1351,19 @@ button {
 
 @keyframes pulse {
   0%   { transform: scale(1); }
-  50%  { transform: scale(1.1); }
+  50%  { transform: scale(1.15) rotate(-2deg); }
   100% { transform: scale(1); }
 }
 
 .animated-logo {
-  width: 80px;
-  animation: pulse 2s infinite;
+  width: 140px;
+  animation: pulse 2.4s infinite;
+  filter: drop-shadow(0 0 10px rgba(56,189,248,0.55));
+}
+
+@media (max-width: 700px){
+  .site-logo,
+  .animated-logo{ width: 96px; }
 }
 
 /* Kids Mode Theme */
@@ -1887,3 +1893,19 @@ button.disabled{
   pointer-events: none;
 }
 
+
+
+/* === Video focus layout tweaks (Jan 2026) === */
+.row-top .col-left { flex: 1.7; }
+.row-top .col-right { flex: 1; }
+
+/* Give the video area more presence */
+.videoStage { min-height: 460px; }
+
+/* D-pad less dominant (still touch-friendly) */
+.dpad-btn { width: 52px; height: 40px; font-size: 1.1rem; }
+.dpad-center { width: 26px; height: 26px; }
+.dpad-wrapper { gap: 8px; margin-top: 8px; }
+
+/* Slightly tighten controls card padding */
+.dpad-section { padding-bottom: 6px; }

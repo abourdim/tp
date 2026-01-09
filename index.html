@@ -13,6 +13,7 @@
 
       <header class="header">
         <div class="title-block">
+          <img class="site-logo animated-logo" src="logo.svg" alt="WORKSHOP-DIY logo" />
           <div>
             <h1>WORKSHOP-DIY.ORG</h1>
             <div class="subtitle">Kid Telepresence</div>
@@ -38,10 +39,8 @@
               <video id="localVideo" class="videoThumb" autoplay playsinline muted></video>
             </div>
           </div>
-        </div>
 
-        <!-- Connection + camera controls on the RIGHT -->
-        <div class="col-right">
+          <!-- Room (beneath video) -->
           <div class="card">
             <div class="card-header">
               <div>
@@ -65,10 +64,10 @@
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="row">
-        <div class="col-left" style="flex: 1 1 100%;">
+        <!-- Controls on the RIGHT -->
+        <div class="col-right">
+          <!-- Game controls on the RIGHT of the video (so you can control + watch at the same time) -->
           <div class="card">
             <div class="card-header">
               <div>
@@ -81,21 +80,21 @@
               <!-- D-pad + Buttons side-by-side -->
               <div class="controls-row">
                 <div class="control-section dpad-section">
-                <div class="section-header">
-                  <div class="section-title"><span class="section-icon">🧭</span> D‑pad</div>
-                  <div class="section-subtitle">Hold to move; release to stop.</div>
-                </div>
-
-                <div class="dpad-wrapper" id="vpad">
-                  <button class="secondary dpad-btn" data-dir="UP">▲</button>
-                  <div class="dpad-middle-row">
-                    <button class="secondary dpad-btn" data-dir="LEFT">◀</button>
-                    <div class="dpad-center" aria-hidden="true"></div>
-                    <button class="secondary dpad-btn" data-dir="RIGHT">▶</button>
+                  <div class="section-header">
+                    <div class="section-title"><span class="section-icon">🧭</span> D‑pad</div>
+                    <div class="section-subtitle">Hold to move; release to stop.</div>
                   </div>
-                  <button class="secondary dpad-btn" data-dir="DOWN">▼</button>
-                  <button class="secondary fire-btn" data-dir="STOP">■ Stop</button>
-                </div>
+
+                  <div class="dpad-wrapper" id="vpad">
+                    <button class="secondary dpad-btn" data-dir="UP">▲</button>
+                    <div class="dpad-middle-row">
+                      <button class="secondary dpad-btn" data-dir="LEFT">◀</button>
+                      <div class="dpad-center" aria-hidden="true"></div>
+                      <button class="secondary dpad-btn" data-dir="RIGHT">▶</button>
+                    </div>
+                    <button class="secondary dpad-btn" data-dir="DOWN">▼</button>
+                    <button class="secondary fire-btn" data-dir="STOP">■ Stop</button>
+                  </div>
                 </div>
 
                 <!-- Right side: Buttons + Send text stacked -->
@@ -126,8 +125,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- Removed separate "Received" panel: RX goes to Logs -->
             </div>
           </div>
         </div>
