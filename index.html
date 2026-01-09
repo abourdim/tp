@@ -8,81 +8,135 @@
 </head>
 <body>
 
-  <div class="topbar">
-    <div class="title">Kid Telepresence</div>
-    <div id="status" class="pill">Idle</div>
-  </div>
+  <div class="app">
+    <div class="rows-container">
 
-  <div class="grid2">
-    <div class="card">
-      <h2>Room</h2>
-      <p class="muted">Open this same page on two devices, enter the same room code, then start & connect.</p>
-
-      <label>Room code</label>
-      <input id="roomInput" class="input" placeholder="e.g. 1234" value="demo" />
-
-      <div class="row">
-        <button id="startBtn" class="btn big">Start camera 🎥</button>
-        <button id="muteMicBtn" class="btn big ghost" disabled>Mute mic 🔇</button>
-        <button id="switchCamBtn" class="btn big ghost" disabled>Switch camera 🔄</button>
-        <button id="flipBtn" class="btn big ghost" disabled>Mirror self 🪞</button>
-        <button id="flipRemoteBtn" class="btn big ghost" disabled>Flip remote ↔️</button>
-        <button id="connectBtn" class="btn big">Connect ✅</button>
-        <button id="hangupBtn" class="btn big ghost" style="display:none">Hang up ✋</button>
-      </div>
-
-      <pre id="log" class="log" style="white-space:pre-wrap"></pre>
-    </div>
-
-    <div class="card">
-      <h2>Live</h2>
-      <div class="muted">Other device</div>
-      <div class="videoStage" aria-label="Remote video with local thumbnail">
-        <video id="remoteVideo" class="video" autoplay playsinline></video>
-        <video id="localVideo" class="videoThumb" autoplay playsinline muted></video>
-      </div>
-    </div>
-
-<div class="card">
-  <h2>Controls</h2>
-  <p class="muted">Virtual buttons (no physical gamepad). Press/hold to send commands to the other device.</p>
-
-  <div class="controlsWrap">
-    <div class="controlsBlock">
-      <div class="muted small">D‑pad</div>
-      <div class="dpad" id="vpad">
-        <button class="btn d" data-dir="UP">▲</button>
-        <div class="row">
-          <button class="btn d" data-dir="LEFT">◀</button>
-          <button class="btn d stop" data-dir="STOP">■</button>
-          <button class="btn d" data-dir="RIGHT">▶</button>
+      <header class="header">
+        <div class="title-block">
+          <div>
+            <h1>WORKSHOP-DIY.ORG</h1>
+            <div class="subtitle">Kid Telepresence</div>
+          </div>
         </div>
-        <button class="btn d" data-dir="DOWN">▼</button>
+        <div id="status" class="chip"><span class="chip-dot"></span><span>Idle</span></div>
+      </header>
+
+      <div class="row row-top">
+        <div class="col-left">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title"><span class="icon">🔗</span> Room</div>
+                <div class="card-subtitle">Open this page on two devices, enter the same room code, then start & connect.</div>
+              </div>
+              <div class="status-pill" id="connPill"><span class="status-dot"></span><span>Not connected</span></div>
+            </div>
+
+            <div class="connection-section-title">Room code</div>
+            <input id="roomInput" type="text" placeholder="e.g. 1234" value="demo" />
+
+            <div class="button-row" style="flex-wrap:wrap; margin-top:10px;">
+              <button id="startBtn" class="primary">🎥 Start camera</button>
+              <button id="muteMicBtn" class="secondary" disabled>🔇 Mute mic</button>
+              <button id="switchCamBtn" class="secondary" disabled>🔄 Switch camera</button>
+              <button id="flipBtn" class="secondary" disabled>🪞 Mirror self</button>
+              <button id="flipRemoteBtn" class="secondary" disabled>↔️ Flip remote</button>
+              <button id="connectBtn" class="primary">✅ Connect</button>
+              <button id="hangupBtn" class="secondary" style="display:none">✋ Hang up</button>
+            </div>
+
+            <div class="log-card" style="margin-top:10px;">
+              <div class="card-title" style="margin-bottom:6px;"><span class="icon">📝</span> Message log</div>
+              <pre id="log" class="log" style="white-space:pre-wrap"></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-right">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title"><span class="icon">📹</span> Live</div>
+                <div class="card-subtitle">Other device</div>
+              </div>
+              <button id="remoteFsBtn" class="secondary small" disabled><span class="btn-icon">⛶</span> Remote fullscreen</button>
+            </div>
+
+            <div id="videoStage" class="videoStage" aria-label="Remote video with local thumbnail">
+              <video id="remoteVideo" class="video" autoplay playsinline></video>
+              <video id="localVideo" class="videoThumb" autoplay playsinline muted></video>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div style="height:10px"></div>
-      <div class="muted small">Buttons</div>
       <div class="row">
-        <button class="btn" data-btn="A">A</button>
-        <button class="btn" data-btn="B">B</button>
-        <button class="btn" data-btn="X">X</button>
-        <button class="btn" data-btn="Y">Y</button>
-      </div>
-    </div>
+        <div class="col-left" style="flex: 1 1 100%;">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title"><span class="icon">🎮</span> Controls</div>
+                <div class="card-subtitle">Virtual buttons (no physical gamepad). Press/hold to send commands to the other device.</div>
+              </div>
+            </div>
 
-    <div class="controlsBlock">
-      <div class="muted small">Send text (testing)</div>
-      <div class="row" style="justify-content:flex-start">
-        <input id="textInput" class="input" placeholder="Type text…" style="flex:1;min-width:220px" />
-        <button id="sendTextBtn" class="btn">Send ✉️</button>
+            <div class="controls-grid">
+              <div class="control-section">
+                <div class="section-header">
+                  <div class="section-title"><span class="section-icon">🧭</span> D‑pad</div>
+                  <div class="section-subtitle">Hold to move; release to stop.</div>
+                </div>
+
+                <div class="dpad-wrapper" id="vpad">
+                  <button class="secondary dpad-btn" data-dir="UP">▲</button>
+                  <div class="dpad-middle-row">
+                    <button class="secondary dpad-btn" data-dir="LEFT">◀</button>
+                    <div class="dpad-center" aria-hidden="true"></div>
+                    <button class="secondary dpad-btn" data-dir="RIGHT">▶</button>
+                  </div>
+                  <button class="secondary dpad-btn" data-dir="DOWN">▼</button>
+                  <button class="secondary fire-btn" data-dir="STOP">■ Stop</button>
+                </div>
+              </div>
+
+              <div class="control-section">
+                <div class="section-header">
+                  <div class="section-title"><span class="section-icon">🕹️</span> Buttons</div>
+                  <div class="section-subtitle">Tap to send A/B/X/Y.</div>
+                </div>
+
+                <div class="button-row" style="flex-wrap:wrap;">
+                  <button class="secondary gp-btn" data-btn="A">A</button>
+                  <button class="secondary gp-btn" data-btn="B">B</button>
+                  <button class="secondary gp-btn" data-btn="X">X</button>
+                  <button class="secondary gp-btn" data-btn="Y">Y</button>
+                </div>
+              </div>
+
+              <div class="control-section">
+                <div class="section-header">
+                  <div class="section-title"><span class="section-icon">✉️</span> Send text</div>
+                  <div class="section-subtitle">Useful for testing the data channel.</div>
+                </div>
+                <div class="form-row">
+                  <input id="textInput" type="text" placeholder="Type text…" />
+                  <button id="sendTextBtn" class="secondary">Send</button>
+                </div>
+              </div>
+
+              <div class="control-section">
+                <div class="section-header">
+                  <div class="section-title"><span class="section-icon">📥</span> Received</div>
+                  <div class="section-subtitle">Messages coming from the other device.</div>
+                </div>
+                <pre id="rxLog" class="log" style="max-height:220px"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div style="height:10px"></div>
-      <div class="muted small">Received</div>
-      <pre id="rxLog" class="log" style="max-height:220px"></pre>
     </div>
-  </div>
-</div>
   </div>
 
   <script>

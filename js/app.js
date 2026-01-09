@@ -17,6 +17,8 @@ const connectBtn = $("connectBtn");
 const hangupBtn = $("hangupBtn");
 const localVideo = $("localVideo");
 const remoteVideo = $("remoteVideo");
+const videoStage = $("videoStage");
+const remoteFsBtn = $("remoteFsBtn");
 const statusPill = $("status");
 const logEl = $("log");
 
@@ -36,6 +38,33 @@ function enableControls(on){
 }
 
 enableControls(false);
+
+// ---- Remote fullscreen ----
+function updateFsButton(){
+  if (!remoteFsBtn) return;
+  const inFs = !!document.fullscreenElement;
+  remoteFsBtn.innerHTML = inFs
+    ? '<span class="btn-icon">⛶</span> Exit fullscreen'
+    : '<span class="btn-icon">⛶</span> Remote fullscreen';
+}
+
+async function toggleRemoteFullscreen(){
+  if (!videoStage) return;
+  try{
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await videoStage.requestFullscreen();
+    }
+  } catch (e){
+    log("Fullscreen failed:", e?.message || String(e));
+  }
+  updateFsButton();
+}
+
+remoteFsBtn?.addEventListener("click", toggleRemoteFullscreen);
+document.addEventListener("fullscreenchange", updateFsButton);
+updateFsButton();
 
 
 function setStatus(t){ if(statusPill) statusPill.textContent = t; }
@@ -321,6 +350,7 @@ function cleanupPeer(){
   isHost = false;
   hostId = null;
   if (remoteVideo) remoteVideo.srcObject = null;
+  if (remoteFsBtn) remoteFsBtn.disabled = true;
   // Keep flip state (UI preference) but ensure class is applied consistently
   setRemoteFlip(isRemoteFlipped);
   hangupBtn.style.display = "none";
@@ -355,6 +385,7 @@ function attachCallHandlers(c){
     // Re-apply remote flip preference after the element starts rendering
     setRemoteFlip(isRemoteFlipped);
     setStatus("Connected ✅");
+    if (remoteFsBtn) remoteFsBtn.disabled = false;
   });
 
   // Once we know who we're connected to, try to ensure a data channel exists.
@@ -364,6 +395,7 @@ function attachCallHandlers(c){
     log("Call closed");
     setStatus("Disconnected");
     if (remoteVideo) remoteVideo.srcObject = null;
+    if (remoteFsBtn) remoteFsBtn.disabled = true;
     hangupBtn.style.display = "none";
   });
   c.on("error", (e) => {
