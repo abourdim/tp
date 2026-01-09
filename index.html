@@ -1,190 +1,150 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Kid Telepresence</title>
-  <link rel="stylesheet" href="css/style.css" />
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Kid Telepresence</title>
+<link href="css/style.css" rel="stylesheet"/>
 </head>
 <body>
-
-  <div class="app">
-    <div class="rows-container">
-
-      <header class="header">
-        <div class="title-block">
-          <img class="site-logo animated-logo" src="logo.svg" alt="WORKSHOP-DIY logo" />
-          <div>
-            <h1>WORKSHOP-DIY.ORG</h1>
-            <div class="subtitle">Kid Telepresence</div>
-          </div>
-        </div>
-        <div id="status" class="chip"><span class="chip-dot"></span><span>Idle</span></div>
-      </header>
-
-      <div class="row row-top">
-        <!-- Live video on the LEFT -->
-        <div class="col-left">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title"><span class="icon">📹</span> Live</div>
-                <div class="card-subtitle">Other device</div>
-              </div>
-              <button id="remoteFsBtn" class="secondary small" disabled><span class="btn-icon">⛶</span> Remote fullscreen</button>
-            </div>
-
-            <div id="videoStage" class="videoStage" aria-label="Remote video with local thumbnail">
-              <video id="remoteVideo" class="video" autoplay playsinline></video>
-              <video id="localVideo" class="videoThumb" autoplay playsinline muted></video>
-            </div>
-          </div>
-
-          <!-- Controls on the RIGHT -->
-        <div class="col-right">
-          <!-- Game controls on the RIGHT of the video (so you can control + watch at the same time) -->
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title"><span class="icon">🎮</span> Controls</div>
-                <div class="card-subtitle">Virtual buttons (no physical gamepad). Press/hold to send commands to the other device.</div>
-              </div>
-            </div>
-
-            <div class="controls-grid">
-              <!-- D-pad + Buttons side-by-side -->
-              <div class="controls-row">
-                <div class="control-section dpad-section">
-                  <div class="section-header">
-                    <div class="section-title"><span class="section-icon">🧭</span> D‑pad</div>
-                    <div class="section-subtitle">Hold to move; release to stop.</div>
-                  </div>
-
-                  <div class="dpad-wrapper" id="vpad">
-                    <button class="secondary dpad-btn" data-dir="UP">▲</button>
-                    <div class="dpad-middle-row">
-                      <button class="secondary dpad-btn" data-dir="LEFT">◀</button>
-                      <div class="dpad-center" aria-hidden="true"></div>
-                      <button class="secondary dpad-btn" data-dir="RIGHT">▶</button>
-                    </div>
-                    <button class="secondary dpad-btn" data-dir="DOWN">▼</button>
-                    <button class="secondary fire-btn" data-dir="STOP">■ Stop</button>
-                  </div>
-                </div>
-
-                <!-- Right side: Buttons + Send text stacked -->
-                <div class="controls-side">
-                  <div class="control-section buttons-section">
-                    <div class="section-header">
-                      <div class="section-title"><span class="section-icon">🕹️</span> Buttons</div>
-                      <div class="section-subtitle">Tap to send A/B/X/Y.</div>
-                    </div>
-
-                    <div class="button-row" style="flex-wrap:wrap;">
-                      <button class="secondary gp-btn" data-btn="A">A</button>
-                      <button class="secondary gp-btn" data-btn="B">B</button>
-                      <button class="secondary gp-btn" data-btn="X">X</button>
-                      <button class="secondary gp-btn" data-btn="Y">Y</button>
-                    </div>
-                  </div>
-
-                  <div class="control-section sendtext-section">
-                    <div class="section-header">
-                      <div class="section-title"><span class="section-icon">✉️</span> Send text</div>
-                      <div class="section-subtitle">Useful for testing the data channel.</div>
-                    </div>
-                    <div class="form-row">
-                      <input id="textInput" type="text" placeholder="Type text…" />
-                      <button id="sendTextBtn" class="secondary">Send</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Logs at the bottom (full width) -->
-      
-      <div class="row row-room-mb">
-        <div class="col-left">
-          <!-- Room (beneath video) -->
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <div class="card-title"><span class="icon">🔗</span> Room</div>
-                <div class="card-subtitle">Open this page on two devices, enter the same room code, then start & connect.</div>
-              </div>
-              <div class="status-pill" id="connPill"><span class="status-dot"></span><span>Not connected</span></div>
-            </div>
-
-            <div class="connection-section-title">Room code</div>
-            <input id="roomInput" type="text" placeholder="e.g. 1234" value="demo" />
-
-            <div class="button-row" style="flex-wrap:wrap; margin-top:10px;">
-              <button id="startBtn" class="primary">🎥 Start camera</button>
-              <button id="muteMicBtn" class="secondary" disabled>🔇 Mute mic</button>
-              <button id="switchCamBtn" class="secondary" disabled>🔄 Switch camera</button>
-              <button id="flipBtn" class="secondary" disabled>🪞 Mirror self</button>
-              <button id="flipRemoteBtn" class="secondary" disabled>↔️ Flip remote</button>
-              <button id="connectBtn" class="primary">✅ Connect</button>
-              <button id="hangupBtn" class="secondary" style="display:none">✋ Hang up</button>
-            </div>
-          </div>
-        </div>
-        </div>
-        <div class="col-right">
-          
-          <div class="card" id="microbitCard">
-            <div class="card-header">
-              <div>
-                <div class="card-title"><span class="icon">🧩</span> micro:bit Live Link</div>
-                <div class="card-subtitle">Connect and stream commands.</div>
-              </div>
-              <div id="mbStatus" class="status-pill"><span class="status-dot"></span><span>Disconnected</span></div>
-            </div>
-
-            <div class="button-row">
-              <button id="mbConnectBtn" class="primary">🔗 Connect</button>
-              <button id="mbDisconnectBtn" class="secondary" disabled>✖ Disconnect</button>
-              <button id="mbSendTestBtn" class="secondary" disabled>🧪 Send TEST</button>
-            </div>
-
-            <div class="button-row">
-              <button id="mbBridgeOnBtn" class="secondary" disabled>🚀 Start sending</button>
-              <button id="mbBridgeOffBtn" class="secondary" disabled>🛑 Stop</button>
-              <button id="mbMuteMbBtn" class="secondary" disabled>🤫 Mute</button>
-            </div>
-
-            <div class="hint">
-              <div class="hint-title">Bridge mode</div>
-              <div>When enabled, commands received from the other device are forwarded to the micro:bit over BLE UART.</div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
+<div class="app">
+<div class="rows-container">
+<header class="header">
+<div class="title-block">
+<img alt="WORKSHOP-DIY logo" class="site-logo animated-logo" src="logo.svg"/>
+<div>
+<h1>WORKSHOP-DIY.ORG</h1>
+<div class="subtitle">Kid Telepresence</div>
+</div>
+</div>
+<div class="chip" id="status"><span class="chip-dot"></span><span>Idle</span></div>
+</header>
+<div class="row row-top top-row"><div class="col-left"><div class="card">
+<div class="card-header">
+<div>
+<div class="card-title"><span class="icon">📹</span> Live</div>
+<div class="card-subtitle">Other device</div>
+</div>
+<button class="secondary small" disabled="" id="remoteFsBtn"><span class="btn-icon">⛶</span> Remote fullscreen</button>
+</div>
+<div aria-label="Remote video with local thumbnail" class="videoStage" id="videoStage">
+<video autoplay="" class="video" id="remoteVideo" playsinline=""></video>
+<video autoplay="" class="videoThumb" id="localVideo" muted="" playsinline=""></video>
+</div>
+</div></div><div class="col-right"><div class="card">
+<div class="card-header">
+<div>
+<div class="card-title"><span class="icon">🎮</span> Controls</div>
+<div class="card-subtitle">Virtual buttons (no physical gamepad). Press/hold to send commands to the other device.</div>
+</div>
+</div>
+<div class="controls-grid">
+<!-- D-pad + Buttons side-by-side -->
+<div class="controls-row">
+<div class="control-section dpad-section">
+<div class="section-header">
+<div class="section-title"><span class="section-icon">🧭</span> D‑pad</div>
+<div class="section-subtitle">Hold to move; release to stop.</div>
+</div>
+<div class="dpad-wrapper" id="vpad">
+<button class="secondary dpad-btn" data-dir="UP">▲</button>
+<div class="dpad-middle-row">
+<button class="secondary dpad-btn" data-dir="LEFT">◀</button>
+<div aria-hidden="true" class="dpad-center"></div>
+<button class="secondary dpad-btn" data-dir="RIGHT">▶</button>
+</div>
+<button class="secondary dpad-btn" data-dir="DOWN">▼</button>
+<button class="secondary fire-btn" data-dir="STOP">■ Stop</button>
+</div>
+</div>
+<!-- Right side: Buttons + Send text stacked -->
+<div class="controls-side">
+<div class="control-section buttons-section">
+<div class="section-header">
+<div class="section-title"><span class="section-icon">🕹️</span> Buttons</div>
+<div class="section-subtitle">Tap to send A/B/X/Y.</div>
+</div>
+<div class="button-row" style="flex-wrap:wrap;">
+<button class="secondary gp-btn" data-btn="A">A</button>
+<button class="secondary gp-btn" data-btn="B">B</button>
+<button class="secondary gp-btn" data-btn="X">X</button>
+<button class="secondary gp-btn" data-btn="Y">Y</button>
+</div>
+</div>
+<div class="control-section sendtext-section">
+<div class="section-header">
+<div class="section-title"><span class="section-icon">✉️</span> Send text</div>
+<div class="section-subtitle">Useful for testing the data channel.</div>
+</div>
+<div class="form-row">
+<input id="textInput" placeholder="Type text…" type="text"/>
+<button class="secondary" id="sendTextBtn">Send</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div></div></div>
+<div class="row row-room-mb"><div class="col-left"><div class="card">
+<div class="card-header">
+<div>
+<div class="card-title"><span class="icon">🔗</span> Room</div>
+<div class="card-subtitle">Open this page on two devices, enter the same room code, then start &amp; connect.</div>
+</div>
+<div class="status-pill" id="connPill"><span class="status-dot"></span><span>Not connected</span></div>
+</div>
+<div class="connection-section-title">Room code</div>
+<input id="roomInput" placeholder="e.g. 1234" type="text" value="demo"/>
+<div class="button-row" style="flex-wrap:wrap; margin-top:10px;">
+<button class="primary" id="startBtn">🎥 Start camera</button>
+<button class="secondary" disabled="" id="muteMicBtn">🔇 Mute mic</button>
+<button class="secondary" disabled="" id="switchCamBtn">🔄 Switch camera</button>
+<button class="secondary" disabled="" id="flipBtn">🪞 Mirror self</button>
+<button class="secondary" disabled="" id="flipRemoteBtn">↔️ Flip remote</button>
+<button class="primary" id="connectBtn">✅ Connect</button>
+<button class="secondary" id="hangupBtn" style="display:none">✋ Hang up</button>
+</div>
+</div></div><div class="col-right"><div class="card" id="microbitCard">
+<div class="card-header">
+<div>
+<div class="card-title"><span class="icon">🧩</span> micro:bit Live Link</div>
+<div class="card-subtitle">Connect and stream commands.</div>
+</div>
+<div class="status-pill" id="mbStatus"><span class="status-dot"></span><span>Disconnected</span></div>
+</div>
+<div class="button-row">
+<button class="primary" id="mbConnectBtn">🔗 Connect</button>
+<button class="secondary" disabled="" id="mbDisconnectBtn">✖ Disconnect</button>
+<button class="secondary" disabled="" id="mbSendTestBtn">🧪 Send TEST</button>
+</div>
+<div class="button-row">
+<button class="secondary" disabled="" id="mbBridgeOnBtn">🚀 Start sending</button>
+<button class="secondary" disabled="" id="mbBridgeOffBtn">🛑 Stop</button>
+<button class="secondary" disabled="" id="mbMuteMbBtn">🤫 Mute</button>
+</div>
+<div class="hint">
+<div class="hint-title">Bridge mode</div>
+<div>When enabled, commands received from the other device are forwarded to the micro:bit over BLE UART.</div>
+</div>
+</div></div></div>
 <div class="row">
-        <div class="col-left" style="flex: 1 1 100%;">
-          <div class="card log-card">
-            <div class="card-header">
-              <div>
-                <div class="card-title"><span class="icon">📝</span> Logs</div>
-                <div class="card-subtitle">Everything (TX/RX/system) appears here.</div>
-              </div>
-              <button id="clearLogsBtn" class="secondary small">🧹 Clear</button>
-            </div>
-            <pre id="log" class="log" style="white-space:pre-wrap"></pre>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <script>
+<div class="col-left" style="flex: 1 1 100%;">
+<div class="card log-card">
+<div class="card-header">
+<div>
+<div class="card-title"><span class="icon">📝</span> Logs</div>
+<div class="card-subtitle">Everything (TX/RX/system) appears here.</div>
+</div>
+<button class="secondary small" id="clearLogsBtn">🧹 Clear</button>
+</div>
+<pre class="log" id="log" style="white-space:pre-wrap"></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
     // Load PeerJS then app logic
     const s1 = document.createElement('script');
     s1.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
@@ -195,6 +155,5 @@
     };
     document.body.appendChild(s1);
   </script>
-
 </body>
 </html>

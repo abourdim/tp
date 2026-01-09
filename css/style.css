@@ -1918,3 +1918,71 @@ button.disabled{
 
 /* Ensure decorative card layers never block clicks */
 .card::before, .card::after { pointer-events: none; }
+
+
+/* === Clean layout: video left, controls right === */
+.top-row{
+  display:grid;
+  grid-template-columns: 2.1fr 1fr;
+  gap:16px;
+  align-items:start;
+}
+@media (max-width: 900px){
+  .top-row{ grid-template-columns: 1fr; }
+}
+
+/* Room + micro:bit under video */
+.row-room-mb{
+  display:grid;
+  grid-template-columns: 1.3fr 0.9fr;
+  gap:16px;
+  margin-top:16px;
+}
+.row-room-mb > .col-left,
+.row-room-mb > .col-right{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+@media (max-width: 900px){
+  .row-room-mb{ grid-template-columns: 1fr; }
+}
+
+/* Video gets more presence */
+#videoStage{
+  min-height: 520px;
+}
+@media (max-width: 900px){
+  #videoStage{ min-height: 380px; }
+}
+
+/* D-pad a bit smaller so video dominates */
+.dpad-wrapper{
+  transform: scale(0.82);
+  transform-origin: top center;
+}
+
+/* Make right column feel tidy */
+.row-top .col-right .card{ margin-bottom:16px; }
+
+
+
+/* === Room + micro:bit row polish === */
+.row-room-mb{
+  align-items: stretch;
+}
+.row-room-mb .col-left,
+.row-room-mb .col-right{
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.row-room-mb .card{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.row-room-mb .card .hint{
+  margin-top: auto;
+}
