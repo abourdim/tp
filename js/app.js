@@ -132,6 +132,7 @@ function setDataConn(conn){
   conn.on("open", () => {
     log("Data channel open ✅");
     enableControls(true);
+    if (askRemoteFsBtn) askRemoteFsBtn.disabled = false;
     setConnStatus("Connected", true);
   });
   conn.on("data", (msg) => {
@@ -167,10 +168,12 @@ function setDataConn(conn){
   conn.on("close", () => {
     log("Data channel closed");
     enableControls(false);
+    if (askRemoteFsBtn) askRemoteFsBtn.disabled = true;
     // If media is still up, we may still be "connected" video-wise, so don't force red.
     if (!call) setConnStatus("Not connected", false);
   });
   conn.on("error", (e) => {
+    if (askRemoteFsBtn) askRemoteFsBtn.disabled = true;
     log("Data channel error:", e?.message || String(e));
     if (!call) setConnStatus("Not connected", false);
   });
