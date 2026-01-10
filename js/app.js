@@ -855,6 +855,28 @@ class MicrobitUart {
 
 
 // UI + bridge helpers
+
+// --- BLE RTT (micro:bit ACK) ---
+const bleRttPending = new Map(); // id -> t0
+function mbMarkSent(id){
+  if (!id) return;
+  bleRttPending.set(id, performance.now());
+}
+function mbOnAck(id){
+  const t0 = bleRttPending.get(id);
+  if (t0 == null) return null;
+  bleRttPending.delete(id);
+  return Math.max(0, performance.now() - t0);
+}
+async function mbSendLineWithId(line, id){
+  const useId = id || ("mb" + Date.now());
+  const payload = `ID ${useId} ${line}`;
+  mbMarkSent(useId);
+  await microbit.sendLine(payload);
+  logEvent({dir:"TX", src:"MB", msg: payload});
+  return useId;
+}
+
 function mbSetStatus(text, ok=false){
   if (!mbStatus) return;
   mbStatus.classList.toggle("connected", !!ok);
@@ -885,8 +907,10 @@ async function forwardToMicrobitFromPeer(msg){
   }
   const line = encodeForMicrobit(msg);
   try{
-    await microbit.sendLine(line);
-    logEvent({dir:"TX", src:"MB", msg: line});
+    const id = (msg && msg._id) ? msg._id : ("mb"+Date.now());
+  await mbSendLineWithId(line, id);
+    // logged by mbSendLineWithId
+
   } catch(e){
     logEvent({dir:"SYS", src:"MB", msg:"send failed: " + (e?.message || e)});
   }
@@ -898,7 +922,18 @@ async function forwardToMicrobitFromPeer(msg){
 
   microbit = new MicrobitUart({
     onLog: (t) => logEvent({dir:"SYS", src:"MB", msg:String(t)}),
-    onRx: (t) => logEvent({dir:"RX", src:"MB", msg:String(t)}),
+    onRx: (t) => {
+      const s = String(t || "").trim();
+      if (/^ACK\s+/i.test(s)){
+        const id = s.split(/\s+/)[1];
+        const ms = mbOnAck(id);
+        if (ms != null){
+          logEvent({dir:"RX", src:"MB", msg:`ACK ${id} (BLE RTT ${Math.round(ms)}ms)`});
+          return;
+        }
+      }
+      logEvent({dir:"RX", src:"MB", msg:s});
+    },
     onConnectionChange: (ok) => {
       mbSetStatus(ok ? "Connected" : "Disconnected", ok);
       mbDisconnectBtn && (mbDisconnectBtn.disabled = !ok);
@@ -934,8 +969,7 @@ async function forwardToMicrobitFromPeer(msg){
 
   mbSendTestBtn?.addEventListener("click", async () => {
     try{
-      await microbit.sendLine("TEST");
-      logEvent({dir:"TX", src:"MB", msg:"TEST"});
+      await mbSendLineWithId("TEST");
     } catch(e){
       logEvent({dir:"SYS", src:"MB", msg:"TEST failed: " + (e?.message || e)});
     }

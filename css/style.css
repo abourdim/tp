@@ -529,7 +529,7 @@ button:disabled {
 
 /* Right-side column next to the D-pad */
 .controls-side{
-    flex: 0 0 280px;
+    flex: 1 1 520px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -2133,3 +2133,11 @@ button.disabled{
 
 /* Bottom RX bar toggle */
 .rx-bar.is-hidden{ display:none !important; }
+
+
+/* Center ABXY buttons within the card */
+.buttons-section .button-row{
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
