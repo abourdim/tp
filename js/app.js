@@ -1,3 +1,5 @@
+let cmdHud = null;
+let hudToggle = null;
 document.addEventListener('DOMContentLoaded', ()=>{ loadHudPref(); });
 // Kid Telepresence (simple, single-page, no roles)
 // How it works:
@@ -21,8 +23,8 @@ const remoteVideo = $("remoteVideo");
 const videoStage = $("videoStage");
 const remoteFsBtn = $("remoteFsBtn");
 const askRemoteFsBtn = $("askRemoteFsBtn");
-const hudToggle = document.getElementById("hudToggle");
-const cmdHud = document.getElementById("cmdHud");
+hudToggle = document.getElementById("hudToggle");
+cmdHud = document.getElementById("cmdHud");
 const cleanCacheBtn = $("cleanCacheBtn");
 const remoteFsOverlay = $("remoteFsOverlay");
 const remoteFsAcceptBtn = $("remoteFsAcceptBtn");
@@ -167,6 +169,30 @@ function setDataConn(conn){
     setConnStatus("Connected", true);
   }
   conn.on("data", (msg) => {
+  try{ updateRxBar(msg); }catch(e){}
+
+  try{ setRxDebug("[RX] " + (typeof msg==="string" ? msg : JSON.stringify(msg)).slice(0,120)); }catch(e){}
+
+  // --- HUD trigger on REAL RX commands (before any returns) ---
+  try {
+    if (typeof showCmdHud === "function" && hudEnabled !== false) {
+      if (msg && msg.type === "cmd") {
+        const d = (msg.cmd || msg.dir || msg.key || "").toString();
+        if (d) showCmdHud("DPAD: " + d);
+      } else if (msg && (msg.type === "btn" || msg.type === "button")) {
+        const b = (msg.id || msg.button || msg.key || "").toString();
+        if (b) showCmdHud("BTN: " + b);
+      } else if (msg && (msg.type === "mb" || msg.type === "microbit")) {
+        const line = (msg.line || msg.msg || "").toString();
+        if (line) showCmdHud("MB: " + line);
+      } else if (msg && msg.type === "txt") {
+        // optional: show short text
+        const t = (msg.text || "").toString();
+        if (t) showCmdHud("TXT: " + t.slice(0, 18));
+      }
+    }
+  } catch (e) {}
+
     // ACK handler
     if (msg && typeof msg === "object" && msg.type === "ack" && msg.id){
       if (_pending.has(msg.id)){
@@ -1006,4 +1032,70 @@ function isViewerDevice(){
   if (!s || !s.getVideoTracks) return false;
   const tracks = s.getVideoTracks();
   return tracks.some(t => t.readyState === "live" && t.enabled);
+}
+
+// Draggable thumb
+(function(){
+ const stage=document.getElementById("videoStage");
+ const thumb=document.getElementById("localVideo");
+ if(!stage||!thumb)return;
+ let drag=false,sx=0,sy=0,l=0,t=0;
+ const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+ thumb.addEventListener("pointerdown",e=>{
+  drag=true;thumb.classList.add("dragging");
+  const r=thumb.getBoundingClientRect(),sr=stage.getBoundingClientRect();
+  l=r.left-sr.left; t=r.top-sr.top;
+  sx=e.clientX; sy=e.clientY;
+  thumb.setPointerCapture(e.pointerId);
+ });
+ window.addEventListener("pointermove",e=>{
+  if(!drag)return;
+  const sr=stage.getBoundingClientRect();
+  const tr=thumb.getBoundingClientRect();
+  const nl=clamp(l+e.clientX-sx,0,sr.width-tr.width);
+  const nt=clamp(t+e.clientY-sy,0,sr.height-tr.height);
+  thumb.style.left=nl+"px"; thumb.style.top=nt+"px";
+  thumb.style.right="auto"; thumb.style.bottom="auto";
+ });
+ window.addEventListener("pointerup",()=>{drag=false;thumb.classList.remove("dragging");});
+})();
+
+// HUD
+cmdHud = document.getElementById("cmdHud");
+hudToggle = document.getElementById("hudToggle");
+let hudOn=true;
+if(hudToggle){hudToggle.checked=true;hudToggle.onchange=()=>hudOn=hudToggle.checked;}
+function showCmdHud(t){
+ if(!hudOn||!cmdHud)return;
+ cmdHud.style.display="block";
+ const b=document.createElement("div");
+ b.className="cmd-hud-bubble";
+ b.textContent=t;
+ cmdHud.appendChild(b);
+ requestAnimationFrame(()=>b.classList.add("show"));
+ setTimeout(()=>{b.classList.remove("show");setTimeout(()=>b.remove(),200)},700);
+}
+
+// === Debug overlay: show latest received message on video ===
+let rxDebugEl = null;
+function setRxDebug(text){
+  try{
+    if (!rxDebugEl) rxDebugEl = document.getElementById("rxDebug");
+    if (!rxDebugEl) return;
+    rxDebugEl.style.display = "block";
+    rxDebugEl.textContent = text;
+  }catch(e){}
+}
+
+// === RX simple debug ===
+let rxCount = 0;
+function updateRxBar(msg){
+  try{
+    const el = document.getElementById("rxBar");
+    if(!el) return;
+    rxCount++;
+    let txt = (typeof msg === "string") ? msg : JSON.stringify(msg);
+    if(txt.length > 120) txt = txt.slice(0,120) + "…";
+    el.textContent = `RX #${rxCount}: ${txt}`;
+  }catch(e){}
 }

@@ -2066,3 +2066,50 @@ button.disabled{
 .cmd-hud-icon{
   opacity: 0.8;
 }
+
+#videoStage{position:relative;}
+#localVideo{position:absolute;right:12px;bottom:12px;width:160px;height:120px;z-index:15;cursor:grab;touch-action:none;}
+#localVideo.dragging{cursor:grabbing;}
+.cmd-hud{position:absolute;left:10px;bottom:10px;z-index:30;pointer-events:none;}
+.cmd-hud-bubble{background:rgba(0,0,0,.55);color:#fff;font-size:.75rem;padding:6px 10px;border-radius:999px;opacity:0;transform:translateY(4px);transition:.18s;}
+.cmd-hud-bubble.show{opacity:1;transform:none;}
+
+/* === Debug: latest RX overlay === */
+#videoStage, .videoStage{position:relative;}
+.rx-debug{
+  position:absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 999;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  pointer-events: none;
+  max-width: 720px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* === RX simple debug bar === */
+#videoStage, .videoStage{ position:relative; }
+.rx-bar{
+  position:absolute;
+  left:8px;
+  right:8px;
+  bottom:8px;
+  z-index:50;
+  padding:6px 10px;
+  border-radius:8px;
+  background:rgba(0,0,0,0.65);
+  border:1px solid rgba(255,255,255,0.25);
+  color:#e5e7eb;
+  font-size:0.75rem;
+  font-family:monospace;
+  pointer-events:none;
+}
