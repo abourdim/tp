@@ -147,11 +147,28 @@ function setDataConn(conn){
       return;
     }
 
+
+    // UI messages (remote fullscreen)
+    if (msg && typeof msg === "object" && msg.type === "ui"){
+      if (msg.cmd === "REMOTE_FULLSCREEN_REQUEST"){
+        const reqId = msg.reqId || msg.id || msg._id || "";
+        showRemoteFsOverlay(reqId);
+        return;
+      }
+      if (msg.cmd === "REMOTE_FULLSCREEN_RESPONSE"){
+        const s = msg.status || "";
+        const r = msg.reason ? (" (" + msg.reason + ")") : "";
+        const rid = msg.reqId ? (" reqId=" + msg.reqId) : "";
+        logEvent({dir:"RX", src:"UI", msg: s + r + rid});
+        return;
+      }
+    }
+
     // Normal messages: log + reply ACK
     if (msg && typeof msg === "object"){
       const src = (msg.type === "cmd") ? "DPAD" :
                   (msg.type === "btn") ? "BUTTONS" :
-                  (msg.type === "text") ? "TEXT" : "PEER";
+                  (msg.type === "text") ? "TEXT" : (msg.type === "ui") ? "UI" : "PEER";
       logEvent({dir:"RX", src, msg: _fmt(msg)});
 
       // Forward received commands to micro:bit if bridge enabled
@@ -840,23 +857,13 @@ function _rid(){
   return Math.random().toString(36).slice(2) + "-" + Date.now().toString(36);
 }
 
-function sendUiMessage(payload){
-  if (!dataConn || !dataConn.open){
-    logEvent({dir:"SYS", src:"UI", msg:"Data channel not open (cannot send UI request)"});
-    return false;
-  }
-  try{
-    dataConn.send(payload);
-    return true;
-  }catch(e){
-    logEvent({dir:"SYS", src:"UI", msg:"Failed to send UI message: " + (e?.message || String(e))});
-    return false;
-  }
+function sendUiMessage(obj){
+  return sendMsg(Object.assign({ _src:"UI" }, obj));
 }
 
 let _remoteFsOverlayTimer = null;
 
-function showRemoteFsOverlay(requestId){
+function showRemoteFsOverlay(reqId){
   if (!remoteFsOverlay) return;
   remoteFsOverlay.style.display = "flex";
   remoteFsOverlay.setAttribute("aria-hidden", "false");
@@ -866,7 +873,7 @@ function showRemoteFsOverlay(requestId){
   _remoteFsOverlayTimer = setTimeout(() => {
     hideRemoteFsOverlay();
     // timeout counts as denied
-    sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", id: requestId, status:"DENIED_FULLSCREEN", reason:"timeout"});
+    sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", reqId: reqId, status:"DENIED_FULLSCREEN", reason:"timeout"});
     logEvent({dir:"TX", src:"UI", msg:"DENIED_FULLSCREEN (timeout)"});
   }, 10000);
 
@@ -882,10 +889,10 @@ function showRemoteFsOverlay(requestId){
     try{
       const stage = document.getElementById("videoStage") || document.documentElement;
       await stage.requestFullscreen();
-      sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", id: requestId, status:"OK_FULLSCREEN", reason:""});
+      sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", reqId: reqId, status:"OK_FULLSCREEN", reason:""});
       logEvent({dir:"TX", src:"UI", msg:"OK_FULLSCREEN"});
     }catch(e){
-      sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", id: requestId, status:"DENIED_FULLSCREEN", reason:"error"});
+      sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", reqId: reqId, status:"DENIED_FULLSCREEN", reason:"error"});
       logEvent({dir:"TX", src:"UI", msg:"DENIED_FULLSCREEN (error)"});
     }
   };
@@ -893,7 +900,7 @@ function showRemoteFsOverlay(requestId){
   const onDeny = () => {
     cleanup();
     hideRemoteFsOverlay();
-    sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", id: requestId, status:"DENIED_FULLSCREEN", reason:"user"});
+    sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", reqId: reqId, status:"DENIED_FULLSCREEN", reason:"user"});
     logEvent({dir:"TX", src:"UI", msg:"DENIED_FULLSCREEN (user)"});
   };
 
@@ -910,10 +917,10 @@ function hideRemoteFsOverlay(){
 }
 
 function requestRemoteFullscreen(){
-  const id = _rid();
-  const ok = sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_REQUEST", id});
-  if (ok){
-    logEvent({dir:"TX", src:"UI", msg:"REMOTE_FULLSCREEN_REQUEST " + id});
+  const reqId = _rid();
+  const mid = sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_REQUEST", reqId});
+  if (mid){
+    logEvent({dir:"TX", src:"UI", msg:"REMOTE_FULLSCREEN_REQUEST reqId=" + reqId});
   }
 }
 
