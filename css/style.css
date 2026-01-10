@@ -2032,3 +2032,37 @@ button.disabled{
   color:#6b7280;
   font-size:0.72rem;
 }
+
+
+/* === On-video command HUD (subtle) === */
+#videoStage { position: relative; }
+.cmd-hud{
+  position:absolute;
+  left: 10px;
+  bottom: 10px;
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(2,6,23,0.38);
+  border: 1px solid rgba(148,163,184,0.20);
+  color: rgba(249,250,251,0.88);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+  max-width: 70%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmd-hud.show{
+  opacity: 1;
+  transform: translateY(0);
+}
+.cmd-hud-icon{
+  opacity: 0.8;
+}

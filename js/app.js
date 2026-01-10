@@ -1,3 +1,4 @@
+document.addEventListener('DOMContentLoaded', ()=>{ loadHudPref(); });
 // Kid Telepresence (simple, single-page, no roles)
 // How it works:
 // - Both devices open the same page and enter the same room code
@@ -20,6 +21,8 @@ const remoteVideo = $("remoteVideo");
 const videoStage = $("videoStage");
 const remoteFsBtn = $("remoteFsBtn");
 const askRemoteFsBtn = $("askRemoteFsBtn");
+const hudToggle = document.getElementById("hudToggle");
+const cmdHud = document.getElementById("cmdHud");
 const cleanCacheBtn = $("cleanCacheBtn");
 const remoteFsOverlay = $("remoteFsOverlay");
 const remoteFsAcceptBtn = $("remoteFsAcceptBtn");
@@ -112,6 +115,26 @@ function logEvent({dir="SYS", src="APP", msg=""} = {}){
   if (logEl && (logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight) < 40) {
     logEl.scrollTop = logEl.scrollHeight;
   }
+
+// === Subtle command HUD overlay on remote video ===
+let _cmdHudTimer = null;
+function showCmdHud(text, icon="⟲"){
+  const hud = $("cmdHud");
+  const hudText = $("cmdHudText");
+  const hudIcon = $("cmdHudIcon");
+  if (!hud || !hudText || !hudIcon) return;
+  hudText.textContent = text;
+  hudIcon.textContent = icon;
+
+  hud.classList.add("show");
+  hud.setAttribute("aria-hidden", "false");
+
+  if (_cmdHudTimer) clearTimeout(_cmdHudTimer);
+  _cmdHudTimer = setTimeout(() => {
+    hud.classList.remove("show");
+    hud.setAttribute("aria-hidden", "true");
+  }, 650);
+}
 }
 // Backwards-compatible helpers
 function log(...args){ logEvent({dir:"SYS", src:"APP", msg: args.map(_fmt).join(" ")}); }
@@ -135,6 +158,14 @@ function setDataConn(conn){
     if (askRemoteFsBtn) askRemoteFsBtn.disabled = false;
     setConnStatus("Connected", true);
   });
+
+  // If the connection is already open before handlers were attached, enable immediately.
+  if (conn.open) {
+    log("Data channel already open ✅");
+    enableControls(true);
+    if (askRemoteFsBtn) askRemoteFsBtn.disabled = false;
+    setConnStatus("Connected", true);
+  }
   conn.on("data", (msg) => {
     // ACK handler
     if (msg && typeof msg === "object" && msg.type === "ack" && msg.id){
@@ -152,7 +183,12 @@ function setDataConn(conn){
     if (msg && typeof msg === "object" && msg.type === "ui"){
       if (msg.cmd === "REMOTE_FULLSCREEN_REQUEST"){
         const reqId = msg.reqId || msg.id || msg._id || "";
-        showRemoteFsOverlay(reqId);
+        if (!isViewerDevice()){
+        sendUiMessage({type:"ui", cmd:"REMOTE_FULLSCREEN_RESPONSE", reqId: reqId, status:"DENIED_FULLSCREEN", reason:"not_viewer"});
+        logEvent({dir:"RX", src:"UI", msg:"REMOTE_FULLSCREEN_REQUEST ignored (not_viewer)"});
+        return;
+      }
+      showRemoteFsOverlay(reqId);
         return;
       }
       if (msg.cmd === "REMOTE_FULLSCREEN_RESPONSE"){
@@ -164,6 +200,23 @@ function setDataConn(conn){
       }
     }
 
+
+    // Command HUD: show received control inputs subtly on the video
+    try{
+      if (typeof showCmdHud === "function" && msg && typeof msg === "object"){
+        if (msg.type === "cmd" && msg.cmd){
+          if (msg.pressed === true || msg.cmd === "STOP"){
+            showCmdHud("DPAD: " + msg.cmd);
+          }
+        } else if (msg.type === "btn" && msg.id){
+          if (msg.pressed === true){
+            showCmdHud("BTN: " + msg.id);
+          }
+        } else if (msg.type === "mb" && (msg.text || msg.msg)){
+          showCmdHud("MB: " + (msg.text || msg.msg));
+        }
+      }
+    }catch(e){}
     // Normal messages: log + reply ACK
     if (msg && typeof msg === "object"){
       const src = (msg.type === "cmd") ? "DPAD" :
@@ -946,3 +999,11 @@ cleanCacheBtn?.addEventListener("click", async () => {
   }
   location.reload();
 });
+
+function isViewerDevice(){
+  const v = $("remoteVideo");
+  const s = v && v.srcObject;
+  if (!s || !s.getVideoTracks) return false;
+  const tracks = s.getVideoTracks();
+  return tracks.some(t => t.readyState === "live" && t.enabled);
+}

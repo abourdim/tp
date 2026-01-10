@@ -28,10 +28,21 @@
 </div>
 <button class="secondary small" disabled="" id="remoteFsBtn"><span class="btn-icon">⛶</span> Remote fullscreen</button>
 <button class="secondary small" disabled="" id="askRemoteFsBtn" title="Ask the other device to go fullscreen"><span class="btn-icon">📲</span> Ask remote</button>
+
+<label class="hud-toggle" title="Show a small overlay of received commands on the video">
+  <input type="checkbox" id="hudToggle" />
+  <span>Show command HUD</span>
+</label>
+
 <button class="secondary small" id="cleanCacheBtn" title="Clear storage/cache and reload"><span class="btn-icon">🧽</span> Clean cache</button>
 </div>
 <div aria-label="Remote video with local thumbnail" class="videoStage" id="videoStage">
 
+
+  <div id="cmdHud" class="cmd-hud" aria-hidden="true">
+    <span class="cmd-hud-icon" id="cmdHudIcon">⟲</span>
+    <span class="cmd-hud-text" id="cmdHudText">—</span>
+  </div>
 <div id="remoteFsOverlay" class="remote-fs-overlay" aria-hidden="true" style="display:none;">
   <div class="remote-fs-panel">
     <div class="remote-fs-title">Fullscreen requested</div>
