@@ -2127,3 +2127,9 @@ button.disabled{
   border-radius:999px;
 }
 
+
+/* Hide legacy top RX/HUD overlays */
+#cmdHud, #rxDebug, .rx-debug, .cmd-hud { display:none !important; }
+
+/* Bottom RX bar toggle */
+.rx-bar.is-hidden{ display:none !important; }

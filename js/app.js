@@ -24,7 +24,7 @@ const videoStage = $("videoStage");
 const remoteFsBtn = $("remoteFsBtn");
 const askRemoteFsBtn = $("askRemoteFsBtn");
 hudToggle = document.getElementById("hudToggle");
-cmdHud = document.getElementById("cmdHud");
+cmdHud = null;
 const cleanCacheBtn = $("cleanCacheBtn");
 const remoteFsOverlay = $("remoteFsOverlay");
 const remoteFsAcceptBtn = $("remoteFsAcceptBtn");
@@ -1085,7 +1085,7 @@ function isViewerDevice(){
 })();
 
 // HUD
-cmdHud = document.getElementById("cmdHud");
+cmdHud = null;
 hudToggle = document.getElementById("hudToggle");
 let hudOn=true;
 if(hudToggle){hudToggle.checked=true;hudToggle.onchange=()=>hudOn=hudToggle.checked;}
@@ -1102,14 +1102,7 @@ function showCmdHud(t){
 
 // === Debug overlay: show latest received message on video ===
 let rxDebugEl = null;
-function setRxDebug(text){
-  try{
-    if (!rxDebugEl) rxDebugEl = document.getElementById("rxDebug");
-    if (!rxDebugEl) return;
-    rxDebugEl.style.display = "block";
-    rxDebugEl.textContent = text;
-  }catch(e){}
-}
+function setRxDebug(){ /* disabled */ }
 
 // === RX simple debug ===
 let rxCount = 0;
@@ -1171,6 +1164,7 @@ function updateRxBar(msg){
     rxCount++;
     if (text.length > 120) text = text.slice(0,120) + "…";
     el.textContent = `RX #${rxCount}: ${text}`;
+    el.classList.add("show");
 
     // auto-dim after 1.2s
     el.classList.add("show");
@@ -1274,3 +1268,30 @@ function rttOnAck(id){
   const avg = __rttSamples.reduce((a,b)=>a+b,0)/__rttSamples.length;
   __rttLog(`[RTT] ${Math.round(ms)}ms (avg ${Math.round(avg)}) id=${id}`);
 }
+
+// === HUD toggle -> rxBar (bottom overlay) ===
+(function(){
+  const btn = document.getElementById("hudBtn");
+  const bar = document.getElementById("rxBar");
+  if (!btn || !bar) return;
+
+  // default ON
+  let on = true;
+  try{
+    const v = localStorage.getItem("tp_rxbar_on");
+    if (v === "0") on = false;
+  }catch(e){}
+
+  function sync(){
+    bar.classList.toggle("is-hidden", !on);
+    btn.classList.toggle("is-on", on);
+    btn.textContent = on ? "👁️ Hide HUD" : "👁️ Show HUD";
+  }
+  sync();
+
+  btn.addEventListener("click", ()=>{
+    on = !on;
+    try{ localStorage.setItem("tp_rxbar_on", on ? "1":"0"); }catch(e){}
+    sync();
+  });
+})();
