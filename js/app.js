@@ -168,7 +168,18 @@ function setDataConn(conn){
     if (askRemoteFsBtn) askRemoteFsBtn.disabled = false;
     setConnStatus("Connected", true);
   }
-  conn.on("data", (msg) => {
+  conn.on("data", (msg)=>{
+  // RTT: match ACKs to sent _id
+  try {
+    if (typeof msg === "string") {
+      const mm = /ack\s+for\s+([^\s]+)/i.exec(msg);
+      if (mm) rttOnAck(mm[1]);
+    } else if (msg && typeof msg === "object" && msg.type === "ack") {
+      rttOnAck(msg.id || msg._id);
+    }
+  } catch(e) {}
+
+  if(typeof msg==="string"){const m=/ack\s+for\s+([^\s]+)/i.exec(msg); if(m) rttOnAck(m[1]);}
   try{ updateRxBar(msg); }catch(e){}
 
   try{ setRxDebug("[RX] " + (typeof msg==="string" ? msg : JSON.stringify(msg)).slice(0,120)); }catch(e){}
@@ -296,7 +307,9 @@ function sendMsg(obj){
     return null;
   }
   try{
-    dataConn.send(msg);
+    rttMarkSent(msg);
+rttMarkSent(msg);
+dataConn.send(msg);
     logEvent({dir:"TX", src, msg: _fmt(msg)});
     _pending.set(id, { t: Date.now(), msg, tries: 1 });
     return id;
@@ -1155,3 +1168,53 @@ function updateRxBar(msg){
   }catch(e){}
 }
 
+
+// === RTT tracking ===
+const rtt={pending:new Map(),last:null,avg:null,samples:[],maxSamples:40};
+function rttMarkSent(msg){if(msg&&msg._id)rtt.pending.set(msg._id,performance.now());}
+function rttOnAck(id){
+ const t0=rtt.pending.get(id); if(!t0)return;
+ rtt.pending.delete(id);
+ const ms=performance.now()-t0;
+ rtt.last=ms; rtt.samples.push(ms);
+ if(rtt.samples.length>rtt.maxSamples)rtt.samples.shift();
+ rtt.avg=rtt.samples.reduce((a,b)=>a+b,0)/rtt.samples.length;
+ const el=document.getElementById("rttBadge");
+ if(el) el.textContent=`RTT ${Math.round(rtt.last)}ms (avg ${Math.round(rtt.avg)})`;
+}
+
+// === Snapshot & Recording ===
+const snapBtn=document.getElementById("snapBtn");
+const recBtn=document.getElementById("recBtn");
+let recorder=null, recChunks=[];
+
+snapBtn?.addEventListener("click",()=>{
+ const v=document.getElementById("remoteVideo");
+ if(!v||!v.videoWidth)return;
+ const c=document.createElement("canvas");
+ c.width=v.videoWidth; c.height=v.videoHeight;
+ c.getContext("2d").drawImage(v,0,0);
+ const a=document.createElement("a");
+ a.href=c.toDataURL("image/png");
+ a.download="snapshot.png"; a.click();
+});
+
+recBtn?.addEventListener("click",()=>{
+ const v=document.getElementById("remoteVideo");
+ if(!v||!v.srcObject)return;
+ if(recorder && recorder.state==="recording"){
+  recorder.stop(); recBtn.textContent="⏺️ Record"; return;
+ }
+ recorder=new MediaRecorder(v.srcObject,{mimeType:"video/webm"});
+ recChunks=[];
+ recorder.ondataavailable=e=>recChunks.push(e.data);
+ recorder.onstop=()=>{
+  const blob=new Blob(recChunks,{type:"video/webm"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="remote_recording.webm";
+  a.click();
+ };
+ recorder.start();
+ recBtn.textContent="⏹️ Stop";
+});
