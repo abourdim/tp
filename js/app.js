@@ -1089,13 +1089,69 @@ function setRxDebug(text){
 
 // === RX simple debug ===
 let rxCount = 0;
+
 function updateRxBar(msg){
   try{
     const el = document.getElementById("rxBar");
     if(!el) return;
+
+    // Decide if this message is "important" enough for the on-video bar.
+    // Everything else remains in Logs.
+    let text = null;
+
+    // If msg is string, try parse JSON
+    let m = msg;
+    if (typeof msg === "string"){
+      try { m = JSON.parse(msg); } catch(e) { m = msg; }
+    }
+
+    // UI responses (fullscreen OK/DENIED)
+    if (m && typeof m === "object" && m.type === "ui" && m.cmd === "REMOTE_FULLSCREEN_RESPONSE"){
+      text = `UI: ${m.status || "RESPONSE"}${m.reason ? " ("+m.reason+")" : ""}`;
+    }
+
+    // Safety / system important strings
+    if (!text && typeof m === "string"){
+      const s = m.toLowerCase();
+      if (s.includes("safety") || s.includes("auto-stop") || s.includes("cmd stop")){
+        text = "SAFETY: " + m;
+      }
+    }
+
+    // Micro:bit traffic
+    if (!text && m && typeof m === "object" && (m.type === "mb" || m.type === "microbit")){
+      const line = (m.line || m.msg || "").toString();
+      if (line) text = "MB: " + line;
+    }
+
+    // D-pad and buttons: show PRESSES only (pressed !== false)
+    if (!text && m && typeof m === "object" && m.type === "cmd"){
+      const pressed = (m.pressed === undefined) ? true : !!m.pressed;
+      if (pressed){
+        const c = (m.cmd || m.dir || m.key || "").toString().toUpperCase();
+        const icon = ({UP:"↑",DOWN:"↓",LEFT:"←",RIGHT:"→",STOP:"■"})[c] || "🎮";
+        text = `${icon} ${c || "CMD"}`;
+      }
+    }
+    if (!text && m && typeof m === "object" && (m.type === "btn" || m.type === "button")){
+      const pressed = (m.pressed === undefined) ? true : !!m.pressed;
+      if (pressed){
+        const b = (m.id || m.button || m.key || "").toString().toUpperCase();
+        text = `● ${b || "BTN"}`;
+      }
+    }
+
+    // If not important, do nothing (keep noise out)
+    if (!text) return;
+
     rxCount++;
-    let txt = (typeof msg === "string") ? msg : JSON.stringify(msg);
-    if(txt.length > 120) txt = txt.slice(0,120) + "…";
-    el.textContent = `RX #${rxCount}: ${txt}`;
+    if (text.length > 120) text = text.slice(0,120) + "…";
+    el.textContent = `RX #${rxCount}: ${text}`;
+
+    // auto-dim after 1.2s
+    el.classList.add("show");
+    clearTimeout(window.__rxBarT);
+    window.__rxBarT = setTimeout(()=> el.classList.remove("show"), 1200);
   }catch(e){}
 }
+
