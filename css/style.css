@@ -590,6 +590,8 @@ button:disabled {
     display: flex;
     gap: 8px;
     margin-top: 4px;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 /* Inputs */
@@ -2140,4 +2142,14 @@ button.disabled{
   justify-content: center;
   align-items: center;
   gap: 10px;
+}
+
+#speakBtn{ margin-left:8px; }
+@media (max-width:600px){ .sendtext-section .form-row{ flex-wrap:wrap; gap:8px;} #speakBtn{margin-left:0;} }
+
+/* Send text row: avoid clipping on small widths */
+#textInput{flex:1 1 260px; min-width:0;}
+#sendTextBtn, #speakBtn{flex:0 0 auto; white-space:nowrap;}
+@media (max-width: 520px){
+  #sendTextBtn, #speakBtn{flex:1 1 auto;}
 }

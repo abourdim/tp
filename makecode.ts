@@ -2,7 +2,7 @@
 // micro:bit BLE UART Command Monitor
 // - No motor management
 // - Logs to USB Serial
-// - ACK every BLE received line 
+// - ACK every BLE received line
 // - Shows arrows for direction commands
 // =====================================
 

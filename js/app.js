@@ -1329,3 +1329,23 @@ function rttOnAck(id){
     sync();
   });
 })();
+
+
+/* === SPEAK BUTTON === */
+(function(){
+  const btn = document.getElementById("speakBtn");
+  if(!btn) return;
+  btn.addEventListener("click", ()=>{
+    const input = document.getElementById("textInput");
+    if(!input || !input.value) return;
+    if(!("speechSynthesis" in window)){
+      try{ if(typeof logLine==="function") logLine("SYS","[TTS] not supported"); }catch(e){}
+      return;
+    }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(input.value);
+    u.lang = navigator.language || "en-US";
+    speechSynthesis.speak(u);
+    try{ if(typeof logLine==="function") logLine("SYS","[TTS] "+input.value); }catch(e){}
+  });
+})();
