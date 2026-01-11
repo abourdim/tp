@@ -67,6 +67,7 @@ body {
 /* Header */
 
 .header {
+    position: relative;
     padding: 12px 18px 10px;
     display: flex;
     align-items: center;
@@ -2446,4 +2447,26 @@ details.collapsible > .card {
   letter-spacing: 1.2px;
   color: #f3c623;
   opacity: 0.95;
+}
+
+
+/* Discreet Bismillah (does not affect layout) */
+.bismillah {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "Amiri", "Noto Naskh Arabic", serif;
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.20;
+    color: rgba(200, 230, 255, 0.9);
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+    text-shadow: 0 0 10px rgba(0,0,0,0.35);
+}
+
+@media (max-width: 520px) {
+  .bismillah { font-size: 10px; top: 4px; }
 }
