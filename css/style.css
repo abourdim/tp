@@ -2201,4 +2201,64 @@ button.disabled{
   flex-wrap:wrap;
   align-items:center;
 }
+/* Send text section - one line layout */
+.sendtext-section .form-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap; /* Keep everything on one line */
+}
 
+/* The text input */
+#textInput {
+    flex: 1;
+    min-width: 0; /* Allow shrinking */
+    border-radius: 8px !important;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    resize: none;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    border: 1px solid rgba(31,41,55,0.9);
+    background: rgba(15,23,42,0.95);
+    color: #e5e7eb;
+}
+
+/* Remove any textarea-specific styles that might be overriding */
+#textInput[type="text"],
+.sendtext-section textarea#textInput {
+    border-radius: 8px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+}
+
+/* Buttons should match height */
+#sendTextBtn,
+#speakBtn {
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    white-space: nowrap;
+}
+
+/* For responsive design */
+@media (max-width: 600px) {
+    .sendtext-section .form-row {
+        flex-wrap: wrap; /* Allow wrapping on mobile */
+    }
+    
+    #textInput {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    #sendTextBtn,
+    #speakBtn {
+        flex: 1;
+        min-width: 120px;
+    }
+}
