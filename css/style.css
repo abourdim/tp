@@ -1313,13 +1313,13 @@ button {
 }
 
 .site-logo {
-    width: 140px;   /* big logo */
-    height: auto;
+    width: 50px;   /* big logo */
+    height: 50px;
 	color: #ffffff; /* logo will take this color */
 }
 
 .animated-logo {
-  width: 140px;
+  width: 50px;
   transition: transform 0.5s ease, filter 0.5s ease;
 }
 
