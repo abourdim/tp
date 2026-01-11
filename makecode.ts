@@ -17,6 +17,8 @@ basic.showIcon(IconNames.Happy)
 function ack(line: string) {
     // ACK back to web app (BLE)
     bluetooth.uartWriteString("ACK " + line + "\n")
+    // Log to USB Serial
+    serial.writeLine("[ACK] " + line)
 }
 
 function showDirectionArrow(dir: string, pressed: string) {
