@@ -954,7 +954,7 @@ async function forwardToMicrobitFromPeer(msg){
   }
 }
 
-// Setup micro:bit handlers
+// Fix the MicrobitUart initialization in app.js:
 (function initMicrobit(){
   if (!mbConnectBtn) return;
 
@@ -962,15 +962,18 @@ async function forwardToMicrobitFromPeer(msg){
     onLog: (t) => logEvent({dir:"SYS", src:"MB", msg:String(t)}),
     onRx: (t) => {
       const s = String(t || "").trim();
+      
+      // ALWAYS log the raw message first
+      logEvent({dir:"RX", src:"MB", msg: s});
+      
+      // Then handle ACK-specific logic
       if (/^ACK\s+/i.test(s)){
         const id = s.split(/\s+/)[1];
         const ms = mbOnAck(id);
         if (ms != null){
-          logEvent({dir:"RX", src:"MB", msg:`ACK ${id} (BLE RTT ${Math.round(ms)}ms)`});
-          return;
+          logEvent({dir:"SYS", src:"MB", msg:`BLE RTT: ${Math.round(ms)}ms for ${id}`});
         }
       }
-      logEvent({dir:"RX", src:"MB", msg:s});
     },
     onConnectionChange: (ok) => {
       mbSetStatus(ok ? "Connected" : "Disconnected", ok);
@@ -987,6 +990,7 @@ async function forwardToMicrobitFromPeer(msg){
 
   mbSetStatus("Disconnected", false);
   mbSyncBridgeUi();
+
 
   mbConnectBtn.addEventListener("click", async () => {
     try{
